@@ -120,6 +120,7 @@ def split_specification(state: AgentState):
         "chunks": chunks,
         "current_chunk_index": 0,
         "partial_fields": [],
+        "warnings": [],
     }
 
 
@@ -187,6 +188,9 @@ def _build_context_from_previous(partial_fields: List[Dict[str, Any]]) -> str:
 
 
 def _make_key(f: Dict[str, Any]):
+    idx = f.get("field_index")
+    if idx is not None:
+        return (f.get("field_group"), idx)
     return (
         f.get("field_group"),
         f.get("field_name", "").strip().lower(),
@@ -196,8 +200,9 @@ def _make_key(f: Dict[str, Any]):
 def _merge_fields(
     existing: List[Dict[str, Any]],
     new_fields: List[Dict[str, Any]],
-) -> List[Dict[str, Any]]:
+) -> tuple:
     merged = list(existing)
+    warnings: List[str] = []
 
     for f in new_fields:
         new_key = _make_key(f)
@@ -206,9 +211,38 @@ def _merge_fields(
         if match_idx is not None:
             merged[match_idx] = _pick_best_version(merged[match_idx], f)
         else:
+            group = f.get("field_group")
+            name_lower = f.get("field_name", "").strip().lower()
+            if group and name_lower:
+                same_name_fields = [
+                    ef for ef in merged
+                    if ef.get("field_group") == group
+                    and ef.get("field_name", "").strip().lower() == name_lower
+                ]
+                if same_name_fields:
+                    base_name = f["field_name"]
+                    all_names = {
+                        ef.get("field_name")
+                        for ef in merged
+                        if ef.get("field_group") == group
+                    }
+                    all_names.add(base_name)
+                    counter = 2
+                    while True:
+                        candidate = f"{base_name}({counter})"
+                        if candidate not in all_names:
+                            break
+                        counter += 1
+                    f = dict(f)
+                    f["field_name"] = candidate
+                    warnings.append(
+                        f"Duplicate field name '{base_name}' in group '{group}' "
+                        f"at index {f.get('field_index')} — renamed to '{candidate}'"
+                    )
+
             merged.append(f)
 
-    return merged
+    return merged, warnings
 
 
 def _find_match(
@@ -240,6 +274,8 @@ def _pick_best_version(
             result[attr] = vb if vb is not None else va
         elif attr == "field_group":
             result[attr] = vb if vb else va
+        elif attr == "field_name":
+            result[attr] = va if va else vb
         else:
             result[attr] = vb if vb else va
 
@@ -274,7 +310,7 @@ def extract_next_chunk(state: AgentState):
     1. Extract file-level metadata (format, encoding, delimiter, naming convention) if mentioned in THIS chunk. If the context shows an incomplete or missing file-level value, re-extract it fully from this chunk.
     2. Extract all fields from THIS chunk. For each field:
        - 'field_group': Must be either 'header' or 'content'.
-       - 'field_index': The exact 0-based offset/index (e.g., Tab Offset, Field Position). Continue numbering from the previous chunk's last extracted index.
+       - 'field_index': The exact 0-based offset/index from the specification (e.g., Tab Offset, Field Position). Use the explicit index from the source — do NOT renumber or continue from the previous chunk.
        - 'field_name': The exact field name.
        - 'data_type': The data type with max length/precision if defined (e.g., 'string (50)').
        - 'description': Full field description details.
@@ -292,7 +328,7 @@ def extract_next_chunk(state: AgentState):
 
         new_fields = [f.model_dump() for f in response.fields]
 
-        merged_fields = _merge_fields(partial_fields, new_fields)
+        merged_fields, merge_warnings = _merge_fields(partial_fields, new_fields)
 
         file_meta = {
             "file_format": response.file_format,
@@ -305,6 +341,7 @@ def extract_next_chunk(state: AgentState):
             "partial_fields": merged_fields,
             "extracted_data": [{"file_metadata": file_meta, "fields": new_fields}],
             "current_chunk_index": idx + 1,
+            "warnings": merge_warnings,
         }
     except Exception as e:
         print(f"Error in extract_next_chunk (chunk {idx}): {e}")
@@ -380,4 +417,5 @@ def reduce_results(state: AgentState):
     return {
         "file_metadata": final_file_meta,
         "fields": final_fields,
+        "warnings": state.get("warnings", []),
     }

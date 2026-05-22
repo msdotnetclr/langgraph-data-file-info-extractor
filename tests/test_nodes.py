@@ -49,19 +49,29 @@ class TestSplitTextIntoChunks:
 
 
 class TestMakeKey:
-    def test_key_is_group_plus_name(self):
+    def test_key_with_index_is_group_plus_index(self):
+        f = {"field_group": "header", "field_name": "RecordType", "field_index": 2}
+        key = _make_key(f)
+        assert key == ("header", 2)
+
+    def test_key_without_index_is_group_plus_name(self):
         f = {"field_group": "header", "field_name": "RecordType"}
         key = _make_key(f)
         assert key == ("header", "recordtype")
 
-    def test_key_ignores_field_index(self):
+    def test_different_index_different_key(self):
         f1 = {"field_group": "content", "field_name": "Amount", "field_index": 0}
         f2 = {"field_group": "content", "field_name": "Amount", "field_index": 5}
-        assert _make_key(f1) == _make_key(f2)
+        assert _make_key(f1) != _make_key(f2)
 
-    def test_name_case_insensitive(self):
+    def test_name_case_insensitive_when_no_index(self):
         f1 = {"field_group": "header", "field_name": "RECORDTYPE"}
         f2 = {"field_group": "header", "field_name": "recordtype"}
+        assert _make_key(f1) == _make_key(f2)
+
+    def test_name_case_irrelevant_when_index_present(self):
+        f1 = {"field_group": "header", "field_name": "RECORDTYPE", "field_index": 0}
+        f2 = {"field_group": "header", "field_name": "recordtype", "field_index": 0}
         assert _make_key(f1) == _make_key(f2)
 
     def test_name_stripped(self):
@@ -74,11 +84,19 @@ class TestFindMatch:
     def test_exact_key_match(self):
         merged = [
             {"field_group": "header", "field_name": "RecordType", "field_index": 0},
-            {"field_group": "content", "field_name": "Name", "field_index": 0},
+            {"field_group": "header", "field_name": "Date", "field_index": 1},
         ]
-        new = {"field_group": "header", "field_name": "RecordType", "field_index": 99}
+        new = {"field_group": "header", "field_name": "RecordType", "field_index": 0}
         idx = _find_match(merged, new, _make_key(new))
         assert idx == 0
+
+    def test_different_index_no_match(self):
+        merged = [
+            {"field_group": "header", "field_name": "RecordType", "field_index": 0},
+        ]
+        new = {"field_group": "header", "field_name": "RecordType", "field_index": 5}
+        idx = _find_match(merged, new, _make_key(new))
+        assert idx is None
 
     def test_no_match(self):
         merged = [
@@ -96,50 +114,96 @@ class TestFindMatch:
         idx = _find_match(merged, new, _make_key(new))
         assert idx is None
 
-    def test_match_ignores_index(self):
-        merged = [
-            {"field_group": "content", "field_name": "Amount", "field_index": 0},
-        ]
-        new = {"field_group": "content", "field_name": "Amount", "field_index": 7}
-        idx = _find_match(merged, new, _make_key(new))
-        assert idx == 0
-
 
 class TestMergeFields:
     def test_no_duplicates(self):
         existing = [{"field_group": "header", "field_name": "A", "field_index": 0}]
         new = [{"field_group": "header", "field_name": "B", "field_index": 1}]
-        result = _merge_fields(existing, new)
+        result, warnings = _merge_fields(existing, new)
         assert len(result) == 2
+        assert warnings == []
 
-    def test_duplicate_merged(self):
+    def test_duplicate_merged_same_index(self):
         existing = [{"field_group": "header", "field_name": "A", "field_index": 0, "data_type": "string"}]
         new = [{"field_group": "header", "field_name": "A", "field_index": 0, "description": "hello"}]
-        result = _merge_fields(existing, new)
+        result, warnings = _merge_fields(existing, new)
         assert len(result) == 1
         assert result[0]["description"] == "hello"
+        assert warnings == []
 
-    def test_duplicate_different_index(self):
+    def test_different_index_keeps_both(self):
         existing = [{"field_group": "content", "field_name": "Amount", "field_index": 5, "data_type": "integer"}]
         new = [{"field_group": "content", "field_name": "Amount", "field_index": 3, "description": "Total amount"}]
-        result = _merge_fields(existing, new)
-        assert len(result) == 1
-        assert result[0]["description"] == "Total amount"
+        result, warnings = _merge_fields(existing, new)
+        assert len(result) == 2
 
-    def test_multiple_complete_fields_in_overlap(self):
+    def test_overlap_with_same_indices_dedup(self):
         existing = [
             {"field_group": "content", "field_name": "FirstName", "field_index": 0, "data_type": "string", "description": "First name"},
             {"field_group": "content", "field_name": "LastName", "field_index": 1, "data_type": "string", "description": "Last name"},
             {"field_group": "content", "field_name": "PartialField", "field_index": 2, "data_type": "string", "description": "Partia"},
         ]
         new_from_overlap = [
-            {"field_group": "content", "field_name": "FirstName", "field_index": 10, "data_type": "string", "description": "First name"},
-            {"field_group": "content", "field_name": "LastName", "field_index": 11, "data_type": "string", "description": "Last name"},
-            {"field_group": "content", "field_name": "PartialField", "field_index": 12, "data_type": "string", "description": "Partial field description goes here"},
+            {"field_group": "content", "field_name": "FirstName", "field_index": 0, "data_type": "string", "description": "First name"},
+            {"field_group": "content", "field_name": "LastName", "field_index": 1, "data_type": "string", "description": "Last name"},
+            {"field_group": "content", "field_name": "PartialField", "field_index": 2, "data_type": "string", "description": "Partial field description goes here"},
         ]
-        result = _merge_fields(existing, new_from_overlap)
+        result, warnings = _merge_fields(existing, new_from_overlap)
         assert len(result) == 3
         assert result[2]["description"] == "Partial field description goes here"
+        assert warnings == []
+
+    def test_name_conflict_same_group_different_index_renames_and_warns(self):
+        existing = [
+            {"field_group": "content", "field_name": "FILLER", "field_index": 2, "data_type": "string", "description": "Padding field 1"},
+        ]
+        new = [
+            {"field_group": "content", "field_name": "FILLER", "field_index": 3, "data_type": "string", "description": "Padding field 2"},
+        ]
+        result, warnings = _merge_fields(existing, new)
+        assert len(result) == 2
+        assert result[0]["field_name"] == "FILLER"
+        assert result[1]["field_name"] == "FILLER(2)"
+        assert len(warnings) == 1
+        assert "Duplicate field name 'FILLER'" in warnings[0]
+        assert "renamed to 'FILLER(2)'" in warnings[0]
+
+    def test_name_conflict_multiple_renames_increments(self):
+        existing = [
+            {"field_group": "content", "field_name": "FILLER", "field_index": 2},
+            {"field_group": "content", "field_name": "FILLER(2)", "field_index": 3},
+            {"field_group": "content", "field_name": "FILLER(3)", "field_index": 4},
+        ]
+        new = [
+            {"field_group": "content", "field_name": "FILLER", "field_index": 5},
+        ]
+        result, warnings = _merge_fields(existing, new)
+        assert len(result) == 4
+        assert result[3]["field_name"] == "FILLER(4)"
+
+    def test_name_conflict_different_group_no_conflict(self):
+        existing = [
+            {"field_group": "header", "field_name": "ID", "field_index": 0},
+        ]
+        new = [
+            {"field_group": "content", "field_name": "ID", "field_index": 0},
+        ]
+        result, warnings = _merge_fields(existing, new)
+        assert len(result) == 2
+        assert result[0]["field_name"] == "ID"
+        assert result[1]["field_name"] == "ID"
+        assert warnings == []
+
+    def test_name_conflict_with_none_index_fallback_key(self):
+        existing = [
+            {"field_group": "content", "field_name": "Extra"},
+        ]
+        new = [
+            {"field_group": "content", "field_name": "Extra", "field_index": 0},
+        ]
+        result, warnings = _merge_fields(existing, new)
+        assert len(result) == 2
+        assert warnings != []
 
 
 class TestPickBestVersion:
@@ -167,13 +231,31 @@ class TestPickBestVersion:
         result = _pick_best_version(a, b)
         assert result["field_index"] == 3
 
-    def test_keeps_existing_value_when_new_is_empty(self):
+    def test_keeps_existing_name_when_both_have_value(self):
+        a = {"field_name": "OriginalName"}
+        b = {"field_name": "NewName"}
+        result = _pick_best_version(a, b)
+        assert result["field_name"] == "OriginalName"
+
+    def test_keeps_existing_name_when_new_is_empty(self):
         a = {"field_name": "ValidName"}
         b = {"field_name": ""}
         result = _pick_best_version(a, b)
         assert result["field_name"] == "ValidName"
 
-    def test_takes_new_value_when_existing_is_empty(self):
+    def test_takes_new_name_when_existing_is_empty(self):
+        a = {"field_name": ""}
+        b = {"field_name": "ValidName"}
+        result = _pick_best_version(a, b)
+        assert result["field_name"] == "ValidName"
+
+    def test_preserves_conflict_suffix(self):
+        a = {"field_name": "FILLER(2)"}
+        b = {"field_name": "FILLER"}
+        result = _pick_best_version(a, b)
+        assert result["field_name"] == "FILLER(2)"
+
+    def test_takes_new_data_type_when_existing_is_empty(self):
         a = {"data_type": ""}
         b = {"data_type": "string (50)"}
         result = _pick_best_version(a, b)

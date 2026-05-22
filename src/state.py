@@ -18,3 +18,5 @@ class AgentState(TypedDict):
     fields: List[Dict[str, Any]]
 
     domain_instructions: str
+
+    warnings: Annotated[List[str], operator.add]

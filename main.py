@@ -93,6 +93,7 @@ def main():
         "file_metadata": {},
         "fields": [],
         "domain_instructions": domain_instructions,
+        "warnings": [],
     }
 
     result = graph.invoke(state)
@@ -100,6 +101,7 @@ def main():
     output = {
         "file_metadata": result.get("file_metadata", {}),
         "fields": result.get("fields", []),
+        "warnings": result.get("warnings", []),
     }
 
     json.dump(output, sys.stdout, indent=2, ensure_ascii=False)
