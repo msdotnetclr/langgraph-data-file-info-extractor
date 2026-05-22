@@ -189,7 +189,6 @@ def _build_context_from_previous(partial_fields: List[Dict[str, Any]]) -> str:
 def _make_key(f: Dict[str, Any]):
     return (
         f.get("field_group"),
-        f.get("field_index"),
         f.get("field_name", "").strip().lower(),
     )
 
@@ -221,21 +220,6 @@ def _find_match(
         ek = _make_key(ef)
         if ek == new_key:
             return i
-
-    if new_field.get("field_index") is not None:
-        for i, ef in enumerate(merged):
-            same_group = ef.get("field_group") == new_field.get("field_group")
-            same_name = ef.get("field_name", "").strip().lower() == new_field.get("field_name", "").strip().lower()
-            if same_group and same_name and ef.get("field_index") is None:
-                return i
-
-    if new_field.get("field_index") is None:
-        for i, ef in enumerate(merged):
-            same_group = ef.get("field_group") == new_field.get("field_group")
-            same_name = ef.get("field_name", "").strip().lower() == new_field.get("field_name", "").strip().lower()
-            if same_group and same_name:
-                return i
-
     return None
 
 
@@ -268,9 +252,15 @@ def extract_next_chunk(state: AgentState):
     partial_fields = state.get("partial_fields", [])
     chunk_text = chunks[idx]
 
+    domain_instructions = state.get("domain_instructions", "").strip()
+
     context = _build_context_from_previous(partial_fields)
 
-    prompt = f"""You are an expert data engineer analyzing a file format specification. This is chunk {idx + 1} of {len(chunks)}.
+    domain_block = ""
+    if domain_instructions:
+        domain_block = f"\nDomain-Specific Instructions:\n{domain_instructions}\n"
+
+    prompt = f"""You are an expert data engineer analyzing a file format specification. This is chunk {idx + 1} of {len(chunks)}.{domain_block}
 
     Previous extraction context:
     {context}

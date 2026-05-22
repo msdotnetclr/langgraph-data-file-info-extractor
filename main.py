@@ -53,6 +53,10 @@ def main():
         default=int(os.getenv("OVERLAP_LINES", "50")),
         help="Number of overlapping lines between consecutive chunks (default: 50).",
     )
+    parser.add_argument(
+        "--instructions-file",
+        help="Path to a file containing domain-specific instructions to inject into the LLM system prompt.",
+    )
     args = parser.parse_args()
 
     os.environ["LLM_PROVIDER"] = args.llm_provider
@@ -71,6 +75,15 @@ def main():
         print("ERROR: Empty input.", file=sys.stderr)
         sys.exit(1)
 
+    domain_instructions = ""
+    if args.instructions_file:
+        try:
+            with open(args.instructions_file, "r", encoding="utf-8") as f:
+                domain_instructions = f.read().strip()
+        except Exception as e:
+            print(f"ERROR: Failed to read instructions file: {e}", file=sys.stderr)
+            sys.exit(1)
+
     state: AgentState = {
         "raw_specification": raw_text,
         "chunks": [],
@@ -79,6 +92,7 @@ def main():
         "extracted_data": [],
         "file_metadata": {},
         "fields": [],
+        "domain_instructions": domain_instructions,
     }
 
     result = graph.invoke(state)

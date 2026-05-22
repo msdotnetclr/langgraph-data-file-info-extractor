@@ -16,3 +16,5 @@ class AgentState(TypedDict):
     file_metadata: Dict[str, Any]
 
     fields: List[Dict[str, Any]]
+
+    domain_instructions: str
