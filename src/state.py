@@ -1,11 +1,11 @@
-from typing import Annotated, TypedDict, List, Dict, Any
+from typing import Annotated, TypedDict, List, Dict, Tuple, Any
 import operator
 
 
 class AgentState(TypedDict):
-    raw_specification: str
+    specification_file: str
 
-    chunks: List[str]
+    chunk_ranges: List[Tuple[int, int]]
 
     current_chunk_index: int
 

@@ -1,10 +1,17 @@
 import os
 import re
-from typing import List, Optional, Dict, Any
+import sys
+from typing import List, Optional, Dict, Any, Tuple
 
 from pydantic import BaseModel, Field
-from langchain_deepseek import ChatDeepSeek
 
+from src.llm import (
+    get_llm_structured,
+    invoke_with_retry,
+    build_extraction_prompt,
+    LLMPermanentError,
+    LLMTransientError,
+)
 from src.state import AgentState
 
 
@@ -48,76 +55,49 @@ def split_text_into_chunks(
     text: str,
     lines_per_chunk: int = 500,
     overlap_lines: int = 50,
-) -> List[str]:
+) -> List[Tuple[int, int]]:
     """
-    Split text into overlapping chunks by line count.
-    Each chunk (except possibly the last) has `lines_per_chunk` lines.
+    Split text into overlapping chunk ranges by line count.
+    Each chunk (except possibly the last) covers `lines_per_chunk` lines.
     Adjacent chunks overlap by `overlap_lines` lines so that no field
     definition is ever cut at a chunk boundary.
+
+    Returns a list of (start, end) tuples where start is inclusive
+    (0-indexed) and end is exclusive (0-indexed).
     """
     text = text.replace("\r\n", "\n")
     lines = text.split("\n")
-    chunks: List[str] = []
+    total_lines = len(lines)
+    ranges: List[Tuple[int, int]] = []
     start = 0
-    while start < len(lines):
-        end = min(start + lines_per_chunk, len(lines))
-        chunks.append("\n".join(lines[start:end]))
-        if end >= len(lines):
+    while start < total_lines:
+        end = min(start + lines_per_chunk, total_lines)
+        ranges.append((start, end))
+        if end >= total_lines:
             break
         start = end - overlap_lines
-    return chunks
+    return ranges
 
 
-# =====================================================================
-# 3. LangGraph Nodes
-# =====================================================================
-
-def _create_llm():
-    provider = os.getenv("LLM_PROVIDER", "deepseek").strip().lower()
-
-    if provider == "azure_openai":
-        from langchain_openai import AzureChatOpenAI
-
-        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-        api_key = os.getenv("AZURE_OPENAI_API_KEY", "")
-        deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "")
-        api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
-
-        if not all([endpoint, api_key, deployment]):
-            missing = []
-            if not endpoint:
-                missing.append("AZURE_OPENAI_ENDPOINT")
-            if not api_key:
-                missing.append("AZURE_OPENAI_API_KEY")
-            if not deployment:
-                missing.append("AZURE_OPENAI_DEPLOYMENT_NAME")
-            raise ValueError(
-                f"Azure OpenAI is missing required configuration: {', '.join(missing)}"
-            )
-
-        return AzureChatOpenAI(
-            azure_endpoint=endpoint,
-            api_key=api_key,
-            api_version=api_version,
-            azure_deployment=deployment,
-            temperature=0,
-        )
-
-    if provider != "deepseek":
-        print(f"Warning: unknown LLM_PROVIDER '{provider}', falling back to deepseek")
-
-    return ChatDeepSeek(model="deepseek-chat", temperature=0)
-
-
-llm = _create_llm()
-llm_structured = llm.with_structured_output(ExtractedMetadata)
+def _read_chunk_from_file(spec_file: str, start: int, end: int) -> str:
+    """Read a specific line range from the specification file."""
+    with open(spec_file, "r", encoding="utf-8") as f:
+        selected_lines = []
+        for i, line in enumerate(f):
+            if i >= end:
+                break
+            if i >= start:
+                selected_lines.append(line.rstrip("\r\n"))
+        return "\n".join(selected_lines)
 
 
 def split_specification(state: AgentState):
-    raw_text = state["raw_specification"]
-    chunks = split_text_into_chunks(raw_text)
+    spec_file = state["specification_file"]
+    with open(spec_file, "r", encoding="utf-8") as f:
+        raw_text = f.read()
+    chunk_ranges = split_text_into_chunks(raw_text)
     return {
-        "chunks": chunks,
+        "chunk_ranges": chunk_ranges,
         "current_chunk_index": 0,
         "partial_fields": [],
         "warnings": [],
@@ -284,47 +264,28 @@ def _pick_best_version(
 
 def extract_next_chunk(state: AgentState):
     idx = state["current_chunk_index"]
-    chunks = state["chunks"]
+    chunk_ranges = state["chunk_ranges"]
     partial_fields = state.get("partial_fields", [])
-    chunk_text = chunks[idx]
+    spec_file = state["specification_file"]
+
+    r = chunk_ranges[idx]
+    chunk_text = _read_chunk_from_file(spec_file, r[0], r[1])
 
     domain_instructions = state.get("domain_instructions", "").strip()
-
     context = _build_context_from_previous(partial_fields)
 
-    domain_block = ""
-    if domain_instructions:
-        domain_block = f"\nDomain-Specific Instructions:\n{domain_instructions}\n"
+    prompt = build_extraction_prompt(
+        idx=idx,
+        total_chunks=len(chunk_ranges),
+        chunk_text=chunk_text,
+        domain_instructions=domain_instructions,
+        context=context,
+    )
 
-    prompt = f"""You are an expert data engineer analyzing a file format specification. This is chunk {idx + 1} of {len(chunks)}.{domain_block}
-
-    Previous extraction context:
-    {context}
-
-    Specification Chunk:
-    ---
-    {chunk_text}
-    ---
-
-    Instructions:
-    1. Extract file-level metadata (format, encoding, delimiter, naming convention) if mentioned in THIS chunk. If the context shows an incomplete or missing file-level value, re-extract it fully from this chunk.
-    2. Extract all fields from THIS chunk. For each field:
-       - 'field_group': Must be either 'header' or 'content'.
-       - 'field_index': The exact 0-based offset/index from the specification (e.g., Tab Offset, Field Position). Use the explicit index from the source — do NOT renumber or continue from the previous chunk.
-       - 'field_name': The exact field name.
-       - 'data_type': The data type with max length/precision if defined (e.g., 'string (50)').
-       - 'description': Full field description details.
-
-    CRITICAL - Handling partial / cross-chunk information:
-    - Adjacent chunks overlap by 50 lines. If a field definition starts near the end of one chunk, it will appear fully in the overlap zone of the next chunk.
-    - If a field in the previous context is marked [INCOMPLETE], and you see its FULL definition in THIS chunk, RE-EXTRACT it with ALL available information (name, type, index, complete description). Do NOT skip an incomplete field.
-    - If a field's DESCRIPTION starts in one chunk and continues here (runs across the chunk boundary), stitch it together: include the full description from beginning to end.
-    - If file-level metadata appears partially in context, re-extract it completely from this chunk.
-    - Do NOT re-extract fields that are already COMPLETE (have name, type, index, and description) in the extracted list.
-    """
+    llm_structured = get_llm_structured(ExtractedMetadata)
 
     try:
-        response = llm_structured.invoke(prompt)
+        response = invoke_with_retry(llm_structured, prompt)
 
         new_fields = [f.model_dump() for f in response.fields]
 
@@ -343,16 +304,25 @@ def extract_next_chunk(state: AgentState):
             "current_chunk_index": idx + 1,
             "warnings": merge_warnings,
         }
-    except Exception as e:
-        print(f"Error in extract_next_chunk (chunk {idx}): {e}")
+    except LLMPermanentError:
+        raise
+    except LLMTransientError as e:
+        print(
+            f"Skipping chunk {idx + 1}/{len(chunk_ranges)} after all retries: {e}",
+            file=sys.stderr,
+        )
         return {
+            "partial_fields": partial_fields,
             "current_chunk_index": idx + 1,
             "extracted_data": [],
+            "warnings": [
+                f"Chunk {idx + 1}/{len(chunk_ranges)} failed after all retries: {e}"
+            ],
         }
 
 
 def should_continue(state: AgentState) -> str:
-    if state["current_chunk_index"] < len(state["chunks"]):
+    if state["current_chunk_index"] < len(state["chunk_ranges"]):
         return "extract_next_chunk"
     return "reduce_results"
 

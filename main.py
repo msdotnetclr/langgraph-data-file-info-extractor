@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 
 from dotenv import load_dotenv
 
@@ -65,15 +66,24 @@ def main():
     from src.state import AgentState
     from src.agent import graph
 
+    temp_file = None
     if args.file:
-        with open(args.file, "r", encoding="utf-8") as f:
-            raw_text = f.read()
+        spec_file = args.file
+        with open(spec_file, "r", encoding="utf-8") as f:
+            if not f.read(1):
+                print("ERROR: Empty input.", file=sys.stderr)
+                sys.exit(1)
     else:
         raw_text = sys.stdin.read()
-
-    if not raw_text.strip():
-        print("ERROR: Empty input.", file=sys.stderr)
-        sys.exit(1)
+        if not raw_text.strip():
+            print("ERROR: Empty input.", file=sys.stderr)
+            sys.exit(1)
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", delete=False, encoding="utf-8"
+        )
+        temp_file.write(raw_text)
+        temp_file.close()
+        spec_file = temp_file.name
 
     domain_instructions = ""
     if args.instructions_file:
@@ -85,8 +95,8 @@ def main():
             sys.exit(1)
 
     state: AgentState = {
-        "raw_specification": raw_text,
-        "chunks": [],
+        "specification_file": spec_file,
+        "chunk_ranges": [],
         "current_chunk_index": 0,
         "partial_fields": [],
         "extracted_data": [],
@@ -96,7 +106,17 @@ def main():
         "warnings": [],
     }
 
-    result = graph.invoke(state)
+    try:
+        result = graph.invoke(state)
+    except Exception as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if temp_file is not None:
+            try:
+                os.unlink(temp_file.name)
+            except OSError:
+                pass
 
     output = {
         "file_metadata": result.get("file_metadata", {}),

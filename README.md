@@ -16,6 +16,19 @@ START → split_specification → extract_next_chunk ⤻ (loop) → reduce_resul
 
 3. **Reduce** — File-level metadata is merged (preferring the most complete value across chunks). Fields are deduplicated, sorted by group and index, and validated against the output schema.
 
+### Error handling & retries
+
+The LLM client uses **lazy initialization** — no connection is established at import time. The underlying provider is only created when the first chunk is processed.
+
+LLM invocation errors are classified into two categories:
+
+| Category | Examples | Behavior |
+|----------|----------|----------|
+| **Permanent** | Authentication failure (401), bad request (400), model not found, permission denied | Propagate immediately — stop the pipeline |
+| **Transient** | Network timeout, connection reset, 5xx server errors, rate limiting (429) | Retry up to 3 times with exponential backoff (1s → 2s → 4s); for rate limits, respects `Retry-After` headers |
+
+If all retries are exhausted on a chunk, the chunk is **skipped** with a warning and the pipeline continues with the next chunk. Previously extracted fields from earlier chunks are preserved.
+
 ### Handling mid-chunk splits
 
 - **Overlap**: Adjacent chunks share 50 lines. A field that starts near the end of chunk N will appear fully in the overlap zone of chunk N+1.
@@ -30,11 +43,17 @@ lg-01/
 ├── langgraph.json      # LangGraph Studio/CLI config
 ├── .env.example        # Environment variables template
 ├── main.py             # CLI entry point
+├── tests/
+│   ├── __init__.py
+│   ├── test_nodes.py   # Unit tests for splitter, merge logic, error classification
+│   └── test_reduce.py  # Unit tests for the reduce step
 └── src/
     ├── __init__.py
-    ├── state.py        # AgentState definition
-    ├── nodes.py        # Pydantic schemas, splitter, LLM nodes, reducer
-    └── agent.py        # Graph assembly (sequential loop)
+    ├── state.py         # AgentState TypedDict definition
+    ├── llm.py           # LLM client (lazy init), error handling, retry logic, prompt builder
+    ├── nodes.py         # Pydantic schemas, splitter, field merging, LangGraph nodes
+    ├── agent.py         # Graph assembly (sequential extraction loop)
+    └── tools.py         # LangChain tools (reserved for future use)
 ```
 
 ## Setup
@@ -88,6 +107,7 @@ cat spec.md | uv run main.py
 | `--llm-provider {deepseek,azure_openai}` | LLM backend | `LLM_PROVIDER` env var or `deepseek` |
 | `--lines-per-chunk N` | Lines per chunk | `LINES_PER_CHUNK` env var or `500` |
 | `--overlap-lines N` | Overlapping lines between chunks | `OVERLAP_LINES` env var or `50` |
+| `--instructions-file PATH` | File with domain-specific instructions injected into the LLM prompt | none |
 
 ### Output
 

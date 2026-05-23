@@ -8,44 +8,47 @@ from src.nodes import (
     _field_is_complete,
     _build_context_from_previous,
 )
+from src.llm import (
+    classify_llm_error,
+    LLMPermanentError,
+    LLMTransientError,
+)
 
 
 class TestSplitTextIntoChunks:
     def test_basic_splitting(self):
         text = "\n".join(str(i) for i in range(100))
-        chunks = split_text_into_chunks(text, lines_per_chunk=30, overlap_lines=5)
-        assert len(chunks) == 4
-        assert all(isinstance(c, str) for c in chunks)
+        ranges = split_text_into_chunks(text, lines_per_chunk=30, overlap_lines=5)
+        assert len(ranges) == 4
+        assert all(isinstance(r, tuple) and len(r) == 2 for r in ranges)
 
     def test_single_chunk(self):
         text = "line1\nline2\nline3"
-        chunks = split_text_into_chunks(text, lines_per_chunk=100, overlap_lines=10)
-        assert len(chunks) == 1
-        assert chunks[0] == text
+        ranges = split_text_into_chunks(text, lines_per_chunk=100, overlap_lines=10)
+        assert len(ranges) == 1
+        assert ranges[0] == (0, 3)
 
     def test_overlap(self):
         text = "\n".join(str(i) for i in range(20))
-        chunks = split_text_into_chunks(text, lines_per_chunk=10, overlap_lines=3)
-        lines0 = chunks[0].split("\n")
-        lines1 = chunks[1].split("\n")
-        assert lines0[-3:] == lines1[:3]
+        ranges = split_text_into_chunks(text, lines_per_chunk=10, overlap_lines=3)
+        assert ranges[0] == (0, 10)
+        assert ranges[1] == (7, 17)
+        assert ranges[2] == (14, 20)
 
     def test_empty_input(self):
-        chunks = split_text_into_chunks("", lines_per_chunk=10, overlap_lines=3)
-        assert chunks == [""]
+        ranges = split_text_into_chunks("", lines_per_chunk=10, overlap_lines=3)
+        assert ranges == [(0, 1)]
 
     def test_crlf_normalization(self):
         text = "line1\r\nline2\r\nline3"
-        chunks = split_text_into_chunks(text, lines_per_chunk=10, overlap_lines=3)
-        assert "\r\n" not in chunks[0]
-        assert "line1\nline2\nline3" in chunks[0]
+        ranges = split_text_into_chunks(text, lines_per_chunk=10, overlap_lines=3)
+        assert ranges == [(0, 3)]
 
     def test_exact_boundary(self):
         text = "\n".join(str(i) for i in range(15))
-        chunks = split_text_into_chunks(text, lines_per_chunk=5, overlap_lines=0)
-        assert len(chunks) == 3
-        for c in chunks:
-            assert len(c.split("\n")) == 5
+        ranges = split_text_into_chunks(text, lines_per_chunk=5, overlap_lines=0)
+        assert len(ranges) == 3
+        assert ranges == [(0, 5), (5, 10), (10, 15)]
 
 
 class TestMakeKey:
@@ -336,3 +339,89 @@ class TestBuildContextFromPrevious:
         assert "F5" in result
         assert "F14" in result
         assert "F0" not in result
+
+
+class TestClassifyLLMError:
+    def test_permanent_by_message_authentication(self):
+        exc = Exception("401 Unauthorized - invalid API key")
+        assert classify_llm_error(exc) == "permanent"
+
+    def test_permanent_by_message_bad_request(self):
+        exc = Exception("400 Bad Request: invalid model name")
+        assert classify_llm_error(exc) == "permanent"
+
+    def test_permanent_by_message_not_found(self):
+        exc = Exception("not found: model does not exist")
+        assert classify_llm_error(exc) == "permanent"
+
+    def test_rate_limit_by_message(self):
+        exc = Exception("429 too many requests, rate limit exceeded")
+        assert classify_llm_error(exc) == "rate_limit"
+
+    def test_transient_by_message_timeout(self):
+        exc = Exception("Request timed out after 60 seconds")
+        assert classify_llm_error(exc) == "transient"
+
+    def test_transient_by_message_connection(self):
+        exc = Exception("Connection reset by peer")
+        assert classify_llm_error(exc) == "transient"
+
+    def test_transient_by_message_server_error(self):
+        for msg in ("503 service unavailable", "500 internal server error", "502 bad gateway"):
+            assert classify_llm_error(Exception(msg)) == "transient"
+
+    def test_unknown_error_defaults_to_permanent(self):
+        exc = Exception("some completely unexpected error")
+        assert classify_llm_error(exc) == "permanent"
+
+    def test_walks_exception_chain(self):
+        root = Exception("401 Unauthorized")
+        middle = RuntimeError("wrapped")
+        middle.__cause__ = root
+        outer = ValueError("outer")
+        outer.__cause__ = middle
+        assert classify_llm_error(outer) == "permanent"
+
+    def test_permanent_by_openai_type_when_available(self):
+        try:
+            import openai
+        except ImportError:
+            import pytest
+            pytest.skip("openai not installed")
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        exc = openai.AuthenticationError(
+            message="bad api key",
+            response=mock_response,
+            body=None,
+        )
+        assert classify_llm_error(exc) == "permanent"
+
+    def test_transient_by_openai_type_when_available(self):
+        try:
+            import openai
+        except ImportError:
+            import pytest
+            pytest.skip("openai not installed")
+        from unittest.mock import MagicMock
+
+        mock_request = MagicMock()
+        exc = openai.APITimeoutError(request=mock_request)
+        assert classify_llm_error(exc) == "transient"
+
+    def test_rate_limit_by_openai_type_when_available(self):
+        try:
+            import openai
+        except ImportError:
+            import pytest
+            pytest.skip("openai not installed")
+        from unittest.mock import MagicMock
+
+        mock_response = MagicMock()
+        exc = openai.RateLimitError(
+            message="rate limit exceeded",
+            response=mock_response,
+            body=None,
+        )
+        assert classify_llm_error(exc) == "rate_limit"
