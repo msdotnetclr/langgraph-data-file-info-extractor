@@ -95,7 +95,8 @@ def main():
             sys.exit(1)
 
     state: AgentState = {
-        "specification_file": spec_file,
+        "spec_file": spec_file,
+        "spec_file_size": 0,
         "chunk_ranges": [],
         "current_chunk_index": 0,
         "partial_fields": [],

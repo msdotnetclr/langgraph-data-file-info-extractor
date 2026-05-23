@@ -3,7 +3,9 @@ import operator
 
 
 class AgentState(TypedDict):
-    specification_file: str
+    spec_file: str
+
+    spec_file_size: int
 
     chunk_ranges: List[Tuple[int, int]]
 

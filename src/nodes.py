@@ -79,8 +79,17 @@ def split_text_into_chunks(
     return ranges
 
 
-def _read_chunk_from_file(spec_file: str, start: int, end: int) -> str:
-    """Read a specific line range from the specification file."""
+def _read_chunk_from_file(spec_file: str, start: int, end: int, expected_size: int) -> str:
+    """Read a specific line range from the specification file.
+
+    Validates that the file size has not changed since splitting to ensure
+    the chunk ranges computed earlier are still valid."""
+    actual_size = os.path.getsize(spec_file)
+    if actual_size != expected_size:
+        raise RuntimeError(
+            f"Specification file size changed ({expected_size} → {actual_size} bytes). "
+            "The file was modified after chunk ranges were computed."
+        )
     with open(spec_file, "r", encoding="utf-8") as f:
         selected_lines = []
         for i, line in enumerate(f):
@@ -92,11 +101,13 @@ def _read_chunk_from_file(spec_file: str, start: int, end: int) -> str:
 
 
 def split_specification(state: AgentState):
-    spec_file = state["specification_file"]
+    spec_file = state["spec_file"]
     with open(spec_file, "r", encoding="utf-8") as f:
         raw_text = f.read()
     chunk_ranges = split_text_into_chunks(raw_text)
+    file_size = os.path.getsize(spec_file)
     return {
+        "spec_file_size": file_size,
         "chunk_ranges": chunk_ranges,
         "current_chunk_index": 0,
         "partial_fields": [],
@@ -266,10 +277,10 @@ def extract_next_chunk(state: AgentState):
     idx = state["current_chunk_index"]
     chunk_ranges = state["chunk_ranges"]
     partial_fields = state.get("partial_fields", [])
-    spec_file = state["specification_file"]
+    spec_file = state["spec_file"]
 
     r = chunk_ranges[idx]
-    chunk_text = _read_chunk_from_file(spec_file, r[0], r[1])
+    chunk_text = _read_chunk_from_file(spec_file, r[0], r[1], state["spec_file_size"])
 
     domain_instructions = state.get("domain_instructions", "").strip()
     context = _build_context_from_previous(partial_fields)
