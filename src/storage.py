@@ -5,7 +5,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-DATA_ROOT = Path(os.getenv("DATA_ROOT", "./data"))
+_RAW = os.getenv("DATA_ROOT", "./data")
+if Path(_RAW).is_absolute():
+    DATA_ROOT = Path(_RAW)
+else:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    DATA_ROOT = _PROJECT_ROOT / _RAW
 
 
 class InputStore:
