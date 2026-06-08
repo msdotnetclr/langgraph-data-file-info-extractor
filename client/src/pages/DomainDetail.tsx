@@ -142,6 +142,7 @@ export default function DomainDetail() {
     try {
       const content = await entry.file.text();
       await api.uploadSpec(domain, sourceName, content);
+      setSpecContent(content);
       setSelectedFiles((prev) => {
         const next = new Map(prev);
         next.delete(sourceName);
@@ -158,10 +159,16 @@ export default function DomainDetail() {
     }
   };
 
-  const openViewer = (sourceName: string) => {
+  const openViewer = async (sourceName: string) => {
     setViewLabel(`${sourceName} — source_specs.md`);
-    setViewContent(specContent);
+    setViewContent('');
     setShowViewModal(true);
+    try {
+      const r = await api.getSpec(domain, sourceName);
+      setViewContent(r.content);
+    } catch {
+      setViewContent('(error loading content)');
+    }
   };
 
   return (
