@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, type SourceInfo, type ContentResponse } from '../api/client';
 import Modal from '../components/Modal';
 
 export default function DomainDetail() {
   const { name } = useParams<{ name: string }>();
+  const navigate = useNavigate();
   const domain = name!;
 
   const [instructions, setInstructions] = useState('');
@@ -177,6 +178,15 @@ export default function DomainDetail() {
     }
   };
 
+  const handleNewSession = async (sourceName: string) => {
+    try {
+      const session = await api.createSession(domain, sourceName);
+      navigate(`/sessions/${session.session_id}`, { state: session });
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-6">
@@ -260,6 +270,14 @@ export default function DomainDetail() {
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                           No spec
                         </span>
+                      )}
+                      {s.has_spec && (
+                        <button
+                          onClick={() => handleNewSession(s.name)}
+                          className="text-xs text-white bg-green-600 hover:bg-green-700 px-2 py-1 rounded font-medium"
+                        >
+                          New Session
+                        </button>
                       )}
                       <button
                         onClick={() => setDeleteTarget(s.name)}
