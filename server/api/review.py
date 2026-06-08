@@ -35,27 +35,27 @@ def _get_meta_and_config(session_id: str):
 async def get_review_data(session_id: str):
     meta, config = _get_meta_and_config(session_id)
 
-    checkpointer = get_sqlite_saver()
-    graph = build_interactive_graph(checkpointer)
+    with get_sqlite_saver() as checkpointer:
+        graph = build_interactive_graph(checkpointer)
 
-    state = await asyncio.to_thread(graph.get_state, config)
+        state = await asyncio.to_thread(graph.get_state, config)
 
-    if state.values is None or len(state.values) == 0:
-        raise HTTPException(
-            status_code=404,
-            detail="Session has no stored state. Run extraction first.",
+        if state.values is None or len(state.values) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="Session has no stored state. Run extraction first.",
+            )
+
+        values = state.values
+
+        result = ExtractionResult(
+            file_metadata=values.get("file_metadata", {}),
+            fields=values.get("fields", []),
+            warnings=values.get("warnings", []),
+            feedback_rounds=[
+                FeedbackRound(**fr) for fr in meta.feedback_rounds
+            ],
         )
-
-    values = state.values
-
-    result = ExtractionResult(
-        file_metadata=values.get("file_metadata", {}),
-        fields=values.get("fields", []),
-        warnings=values.get("warnings", []),
-        feedback_rounds=[
-            FeedbackRound(**fr) for fr in meta.feedback_rounds
-        ],
-    )
 
     return ReviewData(
         session_id=session_id,
@@ -79,34 +79,34 @@ async def submit_review(session_id: str, body: ReviewSubmit):
 
     human_feedback = body.feedback.strip()
 
-    checkpointer = get_sqlite_saver()
-    graph = build_interactive_graph(checkpointer)
+    with get_sqlite_saver() as checkpointer:
+        graph = build_interactive_graph(checkpointer)
 
-    state = await asyncio.to_thread(graph.get_state, config)
+        state = await asyncio.to_thread(graph.get_state, config)
 
-    if decision == "rejected":
-        session_store.add_feedback(session_id, human_feedback)
-        if human_feedback:
-            prev = state.values.get("accumulated_instructions", "") or ""
-            combined = f"{prev}\n\n{human_feedback}" if prev else human_feedback
-            session_store.set_accumulated_instructions(session_id, combined)
+        if decision == "rejected":
+            session_store.add_feedback(session_id, human_feedback)
+            if human_feedback:
+                prev = state.values.get("accumulated_instructions", "") or ""
+                combined = f"{prev}\n\n{human_feedback}" if prev else human_feedback
+                session_store.set_accumulated_instructions(session_id, combined)
 
-        resume_state: AgentState = {
-            "review_decision": "rejected",
-            "human_feedback": human_feedback,
-        }
-        graph.update_state(config, resume_state)
-        await asyncio.to_thread(graph.invoke, None, config)
-        session_store.update_status(session_id, "draft")
+            resume_state: AgentState = {
+                "review_decision": "rejected",
+                "human_feedback": human_feedback,
+            }
+            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.invoke, None, config)
+            session_store.update_status(session_id, "draft")
 
-    else:
-        resume_state: AgentState = {
-            "review_decision": "approved",
-            "human_feedback": "",
-        }
-        graph.update_state(config, resume_state)
-        await asyncio.to_thread(graph.invoke, None, config)
-        session_store.update_status(session_id, "approved")
+        else:
+            resume_state: AgentState = {
+                "review_decision": "approved",
+                "human_feedback": "",
+            }
+            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.invoke, None, config)
+            session_store.update_status(session_id, "approved")
 
     if decision == "approved" and meta.feedback_rounds:
         try:
