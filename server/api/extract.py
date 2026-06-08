@@ -50,55 +50,55 @@ async def event_generator(session_id: str, domain: str, source: str):
             meta = SessionMeta(session_id=session_id, domain=domain, source=source, status="created")
         session_store.persist_meta(meta)
 
-        async with get_sqlite_saver() as checkpointer:
-            graph = build_interactive_graph(checkpointer)
-            config = session_store.get_langgraph_config(session_id)
+        checkpointer = get_sqlite_saver()
+        graph = build_interactive_graph(checkpointer)
+        config = session_store.get_langgraph_config(session_id)
 
-            initial_state: AgentState = {
-                "spec_file": spec_file,
-                "spec_file_size": 0,
-                "chunk_ranges": [],
-                "current_chunk_index": 0,
-                "partial_fields": [],
-                "extracted_data": [],
-                "file_metadata": {},
-                "fields": [],
-                "domain_instructions": domain_instructions,
-                "warnings": [],
-                "session_id": session_id,
-                "domain": domain,
-                "source": source,
-                "review_decision": "",
-                "human_feedback": "",
-                "feedback_rounds": [],
-                "approved": False,
-                "status": "in_progress",
-            }
+        initial_state: AgentState = {
+            "spec_file": spec_file,
+            "spec_file_size": 0,
+            "chunk_ranges": [],
+            "current_chunk_index": 0,
+            "partial_fields": [],
+            "extracted_data": [],
+            "file_metadata": {},
+            "fields": [],
+            "domain_instructions": domain_instructions,
+            "warnings": [],
+            "session_id": session_id,
+            "domain": domain,
+            "source": source,
+            "review_decision": "",
+            "human_feedback": "",
+            "feedback_rounds": [],
+            "approved": False,
+            "status": "in_progress",
+        }
 
-            session_store.update_status(session_id, "in_progress")
+        session_store.update_status(session_id, "in_progress")
 
-            total_chunks = 0
+        total_chunks = 0
 
-            async for event in graph.astream(initial_state, config, stream_mode="updates"):
-                node_name = list(event.keys())[0]
-                node_data = event[node_name]
+        async for event in graph.astream(initial_state, config, stream_mode="updates"):
+            node_name = list(event.keys())[0]
+            node_data = event[node_name]
 
-                if node_name == "split_specification":
-                    total_chunks = len(node_data.get("chunk_ranges", []))
-                    yield f"data: {json.dumps({'type': 'status', 'phase': 'chunking', 'chunks': total_chunks})}\n\n"
-                    await asyncio.sleep(0)
+            if node_name == "split_specification":
+                total_chunks = len(node_data.get("chunk_ranges", []))
+                yield f"data: {json.dumps({'type': 'status', 'phase': 'chunking', 'chunks': total_chunks})}\n\n"
+                await asyncio.sleep(0)
 
-                elif node_name == "extract_next_chunk":
-                    idx = node_data.get("current_chunk_index", 0)
-                    yield f"data: {json.dumps({'type': 'progress', 'phase': 'extracting', 'chunk': min(idx + 1, total_chunks), 'total': total_chunks})}\n\n"
-                    await asyncio.sleep(0)
+            elif node_name == "extract_next_chunk":
+                idx = node_data.get("current_chunk_index", 0)
+                yield f"data: {json.dumps({'type': 'progress', 'phase': 'extracting', 'chunk': min(idx + 1, total_chunks), 'total': total_chunks})}\n\n"
+                await asyncio.sleep(0)
 
-                elif node_name == "reduce_results":
-                    yield f"data: {json.dumps({'type': 'status', 'phase': 'reducing'})}\n\n"
-                    await asyncio.sleep(0)
+            elif node_name == "reduce_results":
+                yield f"data: {json.dumps({'type': 'status', 'phase': 'reducing'})}\n\n"
+                await asyncio.sleep(0)
 
-            session_store.update_status(session_id, "draft")
-            yield f"data: {json.dumps({'type': 'complete', 'session_id': session_id, 'status': 'draft'})}\n\n"
+        session_store.update_status(session_id, "draft")
+        yield f"data: {json.dumps({'type': 'complete', 'session_id': session_id, 'status': 'draft'})}\n\n"
 
     except Exception as e:
         import traceback
