@@ -400,3 +400,68 @@ def reduce_results(state: AgentState):
         "fields": final_fields,
         "warnings": state.get("warnings", []),
     }
+
+
+def review_results(state: AgentState):
+    from langgraph.types import interrupt
+
+    decision = interrupt("review_results", state.get("review_decision", ""))
+    return {"review_decision": decision}
+
+
+def incorporate_feedback(state: AgentState):
+    feedback = state.get("human_feedback", "").strip()
+    previous_instructions = state.get("domain_instructions", "").strip()
+
+    if feedback and previous_instructions:
+        combined = f"{previous_instructions}\n\n## Additional Instructions (from user feedback)\n{feedback}"
+    elif feedback:
+        combined = f"## Instructions (from user feedback)\n{feedback}"
+    else:
+        combined = previous_instructions
+
+    return {
+        "domain_instructions": combined,
+        "current_chunk_index": 0,
+        "partial_fields": [],
+        "extracted_data": [],
+        "file_metadata": {},
+        "fields": [],
+        "review_decision": "",
+    }
+
+
+def after_review_route(state: AgentState) -> str:
+    decision = (state.get("review_decision", "") or "").lower()
+    if decision == "approved":
+        return "store_approved_result"
+    if decision == "rejected":
+        return "incorporate_feedback"
+    return "reduce_results"
+
+
+def store_approved_result(state: AgentState):
+    domain = state.get("domain", "")
+    source = state.get("source", "")
+    session_id = state.get("session_id", "")
+
+    if domain and source and session_id:
+        from src.storage import OutputStore
+
+        store = OutputStore()
+        store.save_output(
+            domain=domain,
+            source=source,
+            session_id=session_id,
+            data={
+                "file_metadata": state.get("file_metadata", {}),
+                "fields": state.get("fields", []),
+                "warnings": state.get("warnings", []),
+            },
+        )
+
+    return {
+        "approved": True,
+        "status": "approved",
+    }
+

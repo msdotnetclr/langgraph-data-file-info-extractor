@@ -1,8 +1,8 @@
-from typing import Annotated, TypedDict, List, Dict, Tuple, Any
+from typing import Annotated, TypedDict, List, Dict, Tuple, Any, Optional
 import operator
 
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
     spec_file: str
 
     spec_file_size: int
@@ -22,3 +22,19 @@ class AgentState(TypedDict):
     domain_instructions: str
 
     warnings: Annotated[List[str], operator.add]
+
+    session_id: str
+
+    domain: str
+
+    source: str
+
+    review_decision: str
+
+    human_feedback: str
+
+    feedback_rounds: Annotated[List[Dict[str, Any]], operator.add]
+
+    approved: bool
+
+    status: str

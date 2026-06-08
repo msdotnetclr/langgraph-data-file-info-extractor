@@ -237,3 +237,58 @@ def build_extraction_prompt(
     - If file-level metadata appears partially in context, re-extract it completely from this chunk.
     - Do NOT re-extract fields that are already COMPLETE (have name, type, index, and description) in the extracted list.
     """
+
+
+def build_feedback_summary_prompt(
+    domain: str,
+    source: str,
+    feedback_rounds: list[dict],
+    existing_instructions: str,
+) -> str:
+    feedback_text = "\n".join(
+        f"### Round {fr['round']} ({fr['timestamp']})\n{fr['feedback_text']}"
+        for fr in feedback_rounds
+    )
+
+    existing_block = ""
+    if existing_instructions.strip():
+        existing_block = f"\nExisting domain instructions:\n---\n{existing_instructions}\n---\n"
+
+    return f"""You are an expert data engineer summarizing human review feedback into domain-specific extraction instructions.
+
+Domain: {domain}
+Source: {source}
+
+{existing_block}
+
+The following feedback was provided by a human reviewer after reviewing extraction results for the source specification "{source}" in domain "{domain}".
+
+User Feedback (from {len(feedback_rounds)} review round(s)):
+---
+{feedback_text}
+---
+
+Instructions:
+1. Distill the user feedback into concise, actionable domain-specific instructions for the LLM extraction process - focus on specific rules and conventions that apply to this domain's data files.
+2. These instructions will be used as a system prompt addition for future extractions, so they should be clear, directive, and focus on extraction behavior.
+3. Format the output as a single markdown section (no preamble, no explanation). Start directly with the instructions.
+4. If there are existing domain instructions, merge the new insights into them — remove any contradictions, prefer the newly provided information.
+5. Keep it practical: formatting rules, delimiter conventions, encoding notes, naming conventions, field grouping rules, data type patterns, etc.
+
+Output only the updated domain-specific instructions in markdown format:
+"""
+
+
+def summarize_feedback(
+    domain: str,
+    source: str,
+    feedback_rounds: list[dict],
+    existing_instructions: str,
+) -> str:
+    prompt = build_feedback_summary_prompt(
+        domain, source, feedback_rounds, existing_instructions
+    )
+    llm = get_llm()
+    response = llm.invoke(prompt)
+    return response.content.strip()
+

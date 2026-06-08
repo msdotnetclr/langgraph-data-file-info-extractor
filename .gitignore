@@ -14,3 +14,9 @@ wheels/
 .env.*
 !.env.example
 
+# Data store
+data/
+
+# Node modules
+node_modules/
+
