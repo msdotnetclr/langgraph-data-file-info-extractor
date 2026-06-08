@@ -39,6 +39,7 @@ class TestSessionStore:
     def test_get_session_after_create(self):
         store = SessionStore()
         created = store.create("d", "s")
+        store.persist_meta(created)
         fetched = store.get(created.session_id)
         assert fetched is not None
         assert fetched.domain == "d"
@@ -47,6 +48,7 @@ class TestSessionStore:
     def test_update_status(self):
         store = SessionStore()
         meta = store.create("d", "s")
+        store.persist_meta(meta)
         updated = store.update_status(meta.session_id, "draft")
         assert updated is not None
         assert updated.status == "draft"
@@ -58,6 +60,7 @@ class TestSessionStore:
     def test_add_feedback(self):
         store = SessionStore()
         meta = store.create("d", "s")
+        store.persist_meta(meta)
         updated = store.add_feedback(meta.session_id, "Need pipe delimiter")
         assert updated is not None
         assert len(updated.feedback_rounds) == 1
@@ -67,6 +70,7 @@ class TestSessionStore:
     def test_add_multiple_feedback_rounds(self):
         store = SessionStore()
         meta = store.create("d", "s")
+        store.persist_meta(meta)
         store.add_feedback(meta.session_id, "Round 1")
         store.add_feedback(meta.session_id, "Round 2")
         fetched = store.get(meta.session_id)
@@ -77,6 +81,7 @@ class TestSessionStore:
     def test_set_accumulated_instructions(self):
         store = SessionStore()
         meta = store.create("d", "s")
+        store.persist_meta(meta)
         store.add_feedback(meta.session_id, "Use pipe")
         store.add_feedback(meta.session_id, "ANSI encoding")
         updated = store.set_accumulated_instructions(
@@ -88,6 +93,8 @@ class TestSessionStore:
         store = SessionStore()
         a = store.create("d1", "s1")
         b = store.create("d2", "s2")
+        store.persist_meta(a)
+        store.persist_meta(b)
         store.update_status(b.session_id, "draft")
 
         drafts = store.list_sessions(status="draft")
@@ -100,9 +107,12 @@ class TestSessionStore:
 
     def test_list_sessions_filter_by_domain(self):
         store = SessionStore()
-        store.create("dom-a", "s1")
-        store.create("dom-b", "s2")
-        store.create("dom-a", "s3")
+        a = store.create("dom-a", "s1")
+        b = store.create("dom-b", "s2")
+        c = store.create("dom-a", "s3")
+        store.persist_meta(a)
+        store.persist_meta(b)
+        store.persist_meta(c)
 
         filtered = store.list_sessions(domain="dom-a")
         assert len(filtered) == 2
@@ -110,6 +120,7 @@ class TestSessionStore:
     def test_delete_session(self):
         store = SessionStore()
         meta = store.create("d", "s")
+        store.persist_meta(meta)
         assert store.delete(meta.session_id) is True
         assert store.get(meta.session_id) is None
 

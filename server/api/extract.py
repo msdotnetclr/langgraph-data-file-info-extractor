@@ -17,14 +17,14 @@ session_store = SessionStore()
 input_store = InputStore()
 
 
-async def event_generator(session_id: str):
-    meta = session_store.get(session_id)
-    if meta is None:
-        yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
-        return
-
-    domain = meta.domain
-    source = meta.source
+async def event_generator(session_id: str, domain: str, source: str):
+    if not domain or not source:
+        meta = session_store.get(session_id)
+        if meta is None:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found and no domain/source provided'})}\n\n"
+            return
+        domain = meta.domain
+        source = meta.source
 
     if not input_store.domain_exists(domain):
         yield f"data: {json.dumps({'type': 'error', 'message': f'Domain {domain} not found'})}\n\n"
@@ -39,6 +39,12 @@ async def event_generator(session_id: str):
         return
 
     domain_instructions = input_store.get_instructions(domain)
+
+    meta = session_store.get(session_id)
+    if meta is None:
+        from src.session_manager import SessionMeta
+        meta = SessionMeta(session_id=session_id, domain=domain, source=source, status="created")
+    session_store.persist_meta(meta)
 
     checkpointer = get_sqlite_saver()
     graph = build_interactive_graph(checkpointer)
@@ -99,13 +105,13 @@ async def event_generator(session_id: str):
 
 
 @router.post("/api/sessions/{session_id}/start")
-async def start_extraction(session_id: str):
-    meta = session_store.get(session_id)
-    if meta is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
+async def start_extraction(
+    session_id: str,
+    domain: str = Query(""),
+    source: str = Query(""),
+):
     return StreamingResponse(
-        event_generator(session_id),
+        event_generator(session_id, domain, source),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

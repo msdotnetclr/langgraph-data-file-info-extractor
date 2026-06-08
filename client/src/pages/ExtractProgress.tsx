@@ -1,10 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { api, type SSEEvent } from '../api/client';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { api, type SSEEvent, type SessionInfo } from '../api/client';
 
 export default function ExtractProgress() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState = location.state as SessionInfo | null;
+
   const [phase, setPhase] = useState('Starting...');
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
@@ -16,7 +19,11 @@ export default function ExtractProgress() {
 
     const run = async () => {
       try {
-        const res = await api.startExtraction(id);
+        const res = await api.startExtraction(
+          id,
+          routeState?.domain,
+          routeState?.source,
+        );
         if (!res.ok) {
           const detail = (await res.json().catch(() => ({}))) as { detail?: string };
           setError(detail.detail || 'Failed to start extraction');

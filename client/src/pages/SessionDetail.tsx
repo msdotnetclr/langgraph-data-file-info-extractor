@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { api, type SessionInfo } from '../api/client';
 
 export default function SessionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const routeState = location.state as SessionInfo | null;
+
+  const [session, setSession] = useState<SessionInfo | null>(routeState);
+  const [loading, setLoading] = useState(!routeState);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (routeState) return;
     if (!id) return;
     api.getSession(id)
       .then(setSession)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, routeState]);
 
   if (loading) return <p className="text-gray-500 py-12 text-center">Loading session...</p>;
 
@@ -68,7 +72,7 @@ export default function SessionDetail() {
         <div className="flex gap-3 pt-4 border-t border-gray-100">
           {(session.status === 'created' || session.status === 'draft') && (
             <button
-              onClick={() => navigate(`/sessions/${session.session_id}/extract`)}
+              onClick={() => navigate(`/sessions/${session.session_id}/extract`, { state: session })}
               className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
             >
               {session.status === 'draft' ? 'Re-run Extraction' : 'Start Extraction'}

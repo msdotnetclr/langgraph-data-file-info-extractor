@@ -37,7 +37,7 @@ export default function Sessions() {
       setShowCreate(false);
       setSelectedDomain('');
       setSelectedSource('');
-      navigate(`/sessions/${session.session_id}`);
+      navigate(`/sessions/${session.session_id}`, { state: session });
     } catch (e: any) {
       setError(e.message);
     } finally {

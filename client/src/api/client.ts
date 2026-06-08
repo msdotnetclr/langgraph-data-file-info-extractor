@@ -160,8 +160,13 @@ export const api = {
   deleteSession: (id: string) =>
     request<OKResponse>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
-  startExtraction: (sessionId: string) =>
-    fetch(`/api/sessions/${encodeURIComponent(sessionId)}/start`),
+  startExtraction: (sessionId: string, domain?: string, source?: string) => {
+    const params = new URLSearchParams();
+    if (domain) params.set('domain', domain);
+    if (source) params.set('source', source);
+    const qs = params.toString();
+    return fetch(`/api/sessions/${encodeURIComponent(sessionId)}/start${qs ? '?' + qs : ''}`);
+  },
 
   getReviewData: (sessionId: string) =>
     request<ReviewData>(`/sessions/${encodeURIComponent(sessionId)}/review`),

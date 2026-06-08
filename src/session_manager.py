@@ -73,14 +73,15 @@ class SessionStore:
         session_id: Optional[str] = None,
     ) -> SessionMeta:
         sid = session_id or str(uuid.uuid4())
-        meta = SessionMeta(
+        return SessionMeta(
             session_id=sid,
             domain=domain,
             source=source,
             status="created",
         )
+
+    def persist_meta(self, meta: SessionMeta) -> None:
         self._save_meta(meta)
-        return meta
 
     def get(self, session_id: str) -> Optional[SessionMeta]:
         file = self._metadata_file(session_id)
