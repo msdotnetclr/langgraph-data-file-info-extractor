@@ -16,6 +16,15 @@ export default function Modal({ open, onClose, title, children, wide }: ModalPro
     if (!el) return;
     if (open) {
       el.showModal();
+      requestAnimationFrame(() => {
+        const auto = el.querySelector<HTMLElement>('[autofocus]');
+        if (auto) {
+          auto.focus();
+        } else {
+          const first = el.querySelector<HTMLElement>('input, textarea, select');
+          first?.focus();
+        }
+      });
     } else {
       el.close();
     }
