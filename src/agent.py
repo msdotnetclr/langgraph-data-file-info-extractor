@@ -47,7 +47,7 @@ def build_interactive_graph(checkpointer):
     workflow.add_conditional_edges("review_results", after_review_route, {
         "store_approved_result": "store_approved_result",
         "incorporate_feedback": "incorporate_feedback",
-        "reduce_results": "reduce_results",
+        END: END,
     })
     workflow.add_edge("incorporate_feedback", "split_specification")
     workflow.add_edge("store_approved_result", END)
