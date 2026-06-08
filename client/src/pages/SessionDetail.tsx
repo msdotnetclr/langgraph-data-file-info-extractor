@@ -78,6 +78,14 @@ export default function SessionDetail() {
               {session.status === 'draft' ? 'Re-run Extraction' : 'Start Extraction'}
             </button>
           )}
+          {session.status === 'failed' && (
+            <button
+              onClick={() => navigate(`/sessions/${session.session_id}/extract`, { state: session })}
+              className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700"
+            >
+              Re-run
+            </button>
+          )}
           {session.status === 'draft' && (
             <button
               onClick={() => navigate(`/sessions/${session.session_id}/review`)}
