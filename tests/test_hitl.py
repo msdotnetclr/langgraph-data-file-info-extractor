@@ -1,5 +1,4 @@
 import shutil
-from pathlib import Path
 
 import pytest
 
@@ -8,8 +7,9 @@ from src.nodes import (
     incorporate_feedback,
 )
 from src.state import AgentState
+from src.session_manager import SESSIONS_ROOT
 
-TEST_SESSIONS = Path("./data/sessions")
+TEST_SESSIONS = SESSIONS_ROOT
 
 
 @pytest.fixture(autouse=True)

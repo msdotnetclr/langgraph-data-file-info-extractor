@@ -1,11 +1,10 @@
 import shutil
-from pathlib import Path
 
 import pytest
 
-from src.session_manager import SessionStore, SessionMeta
+from src.session_manager import SessionStore, SessionMeta, SESSIONS_ROOT
 
-TEST_SESSIONS = Path("./data/sessions")
+TEST_SESSIONS = SESSIONS_ROOT
 
 
 @pytest.fixture(autouse=True)

@@ -1,22 +1,22 @@
-import json
-import os
 import shutil
-from pathlib import Path
 
 import pytest
 
 from src.storage import InputStore, OutputStore, get_input_tree, DATA_ROOT
 
-TEST_DATA = Path("./data")
+TEST_INPUT = DATA_ROOT / "input"
+TEST_OUTPUT = DATA_ROOT / "output"
 
 
 @pytest.fixture(autouse=True)
 def clean_data():
-    if TEST_DATA.exists():
-        shutil.rmtree(TEST_DATA)
+    for path in (TEST_INPUT, TEST_OUTPUT):
+        if path.exists():
+            shutil.rmtree(path)
     yield
-    if TEST_DATA.exists():
-        shutil.rmtree(TEST_DATA)
+    for path in (TEST_INPUT, TEST_OUTPUT):
+        if path.exists():
+            shutil.rmtree(path)
 
 
 class TestInputStore:
