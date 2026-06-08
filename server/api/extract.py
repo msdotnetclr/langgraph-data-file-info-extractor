@@ -50,7 +50,7 @@ async def event_generator(session_id: str, domain: str, source: str):
             meta = SessionMeta(session_id=session_id, domain=domain, source=source, status="created")
         session_store.persist_meta(meta)
 
-        with get_sqlite_saver() as checkpointer:
+        async with get_sqlite_saver() as checkpointer:
             graph = build_interactive_graph(checkpointer)
             config = session_store.get_langgraph_config(session_id)
 

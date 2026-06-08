@@ -35,7 +35,7 @@ def _get_meta_and_config(session_id: str):
 async def get_review_data(session_id: str):
     meta, config = _get_meta_and_config(session_id)
 
-    with get_sqlite_saver() as checkpointer:
+    async with get_sqlite_saver() as checkpointer:
         graph = build_interactive_graph(checkpointer)
 
         state = await asyncio.to_thread(graph.get_state, config)
@@ -79,7 +79,7 @@ async def submit_review(session_id: str, body: ReviewSubmit):
 
     human_feedback = body.feedback.strip()
 
-    with get_sqlite_saver() as checkpointer:
+    async with get_sqlite_saver() as checkpointer:
         graph = build_interactive_graph(checkpointer)
 
         state = await asyncio.to_thread(graph.get_state, config)

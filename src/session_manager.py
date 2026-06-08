@@ -3,11 +3,11 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
 from typing import Optional
 
-from typing import Optional
-
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from src.storage import DATA_ROOT
 
@@ -15,9 +15,11 @@ SESSIONS_ROOT = DATA_ROOT / "sessions"
 CHECKPOINT_DB = SESSIONS_ROOT / "checkpoints.db"
 
 
-def get_sqlite_saver() -> SqliteSaver:
+@asynccontextmanager
+async def get_sqlite_saver() -> AsyncIterator[AsyncSqliteSaver]:
     SESSIONS_ROOT.mkdir(parents=True, exist_ok=True)
-    return SqliteSaver.from_conn_string(str(CHECKPOINT_DB))
+    async with AsyncSqliteSaver.from_conn_string(str(CHECKPOINT_DB)) as saver:
+        yield saver
 
 
 class SessionMeta:
