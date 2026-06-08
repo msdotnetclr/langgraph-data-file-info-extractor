@@ -405,7 +405,7 @@ def reduce_results(state: AgentState):
 def review_results(state: AgentState):
     from langgraph.types import interrupt
 
-    decision = interrupt("review_results", state.get("review_decision", ""))
+    decision = interrupt(state.get("review_decision", ""))
     return {"review_decision": decision}
 
 
