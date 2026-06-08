@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, type DomainInfo } from '../api/client';
 import Modal from '../components/Modal';
 
@@ -12,6 +12,7 @@ export default function DomainList() {
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
 
   const load = () => {
     setLoading(true);
@@ -30,7 +31,7 @@ export default function DomainList() {
       await api.createDomain(newName.trim());
       setNewName('');
       setShowCreate(false);
-      load();
+      navigate(`/domains/${encodeURIComponent(newName.trim())}`);
     } catch (e: any) {
       setError(e.message);
     } finally {
