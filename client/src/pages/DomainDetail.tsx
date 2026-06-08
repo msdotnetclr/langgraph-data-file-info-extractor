@@ -18,6 +18,7 @@ export default function DomainDetail() {
 
   const [showCreateSource, setShowCreateSource] = useState(false);
   const [newSourceName, setNewSourceName] = useState('');
+  const [newSourceFile, setNewSourceFile] = useState<File | null>(null);
   const [creatingSource, setCreatingSource] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -76,7 +77,12 @@ export default function DomainDetail() {
     setCreatingSource(true);
     try {
       await api.createSource(domain, newSourceName.trim());
+      if (newSourceFile) {
+        const content = await newSourceFile.text();
+        await api.uploadSpec(domain, newSourceName.trim(), content);
+      }
       setNewSourceName('');
+      setNewSourceFile(null);
       setShowCreateSource(false);
       loadSources();
     } catch (e: any) {
@@ -345,19 +351,34 @@ export default function DomainDetail() {
         </div>
       </Modal>
 
-      <Modal open={showCreateSource} onClose={() => { setShowCreateSource(false); setNewSourceName(''); }} title="Create Source">
+      <Modal open={showCreateSource} onClose={() => { setShowCreateSource(false); setNewSourceName(''); setNewSourceFile(null); }} title="Create Source">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Source name</label>
         <input
           type="text"
           value={newSourceName}
           onChange={(e) => setNewSourceName(e.target.value)}
-          placeholder="Source name..."
+          placeholder="e.g. monthly-export"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
           autoFocus
           onKeyDown={(e) => e.key === 'Enter' && handleCreateSource()}
         />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Specification file (optional)</label>
+          <input
+            type="file"
+            accept=".md,.txt"
+            onChange={(e) => setNewSourceFile(e.target.files?.[0] || null)}
+            className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          {newSourceFile && (
+            <p className="text-xs text-gray-500 mt-1">
+              Selected: <span className="font-medium">{newSourceFile.name}</span> — will be saved as <span className="font-mono">source_specs.md</span>
+            </p>
+          )}
+        </div>
         <div className="flex justify-end gap-2">
           <button
-            onClick={() => { setShowCreateSource(false); setNewSourceName(''); }}
+            onClick={() => { setShowCreateSource(false); setNewSourceName(''); setNewSourceFile(null); }}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
           >
             Cancel
