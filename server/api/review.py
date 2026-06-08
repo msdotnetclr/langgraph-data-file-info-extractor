@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from server.api.schemas import (
@@ -85,12 +87,7 @@ async def submit_review(session_id: str, body: ReviewSubmit):
     async with get_sqlite_saver() as checkpointer:
         graph = build_interactive_graph(checkpointer)
 
-        try:
-            state = graph.get_state(config)
-        except Exception:
-            raise HTTPException(
-                status_code=404, detail="Session state not found in checkpointer"
-            )
+        state = graph.get_state(config)
 
         if decision == "rejected":
             session_store.add_feedback(session_id, human_feedback)
@@ -99,15 +96,21 @@ async def submit_review(session_id: str, body: ReviewSubmit):
                 combined = f"{prev}\n\n{human_feedback}" if prev else human_feedback
                 session_store.set_accumulated_instructions(session_id, combined)
 
-        resume_state: AgentState = {
-            "review_decision": decision,
-            "human_feedback": human_feedback if decision == "rejected" else "",
-        }
+            resume_state: AgentState = {
+                "review_decision": "rejected",
+                "human_feedback": human_feedback,
+            }
+            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.invoke, None, config)
+            session_store.update_status(session_id, "draft")
 
-        graph.update_state(config, resume_state)
-
-        if decision == "approved":
-            graph.invoke(None, config)
+        else:
+            resume_state: AgentState = {
+                "review_decision": "approved",
+                "human_feedback": "",
+            }
+            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.invoke, None, config)
             session_store.update_status(session_id, "approved")
 
     if decision == "approved" and meta.feedback_rounds:

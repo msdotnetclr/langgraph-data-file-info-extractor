@@ -34,9 +34,9 @@ class TestAfterReviewRoute:
         assert after_review_route({"review_decision": "Approved"}) == "store_approved_result"
         assert after_review_route({"review_decision": "REJECTED"}) == "incorporate_feedback"
 
-    def test_empty_decision_routes_to_reduce(self):
-        assert after_review_route({"review_decision": ""}) == "reduce_results"
-        assert after_review_route({"review_decision": "unknown"}) == "reduce_results"
+    def test_empty_decision_routes_to_end(self):
+        assert after_review_route({"review_decision": ""}) == "__end__"
+        assert after_review_route({"review_decision": "unknown"}) == "__end__"
 
 
 class TestIncorporateFeedback:

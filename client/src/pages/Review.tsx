@@ -40,7 +40,10 @@ export default function Review() {
       } else {
         setFeedback('');
         setShowFeedback(false);
-        navigate(`/sessions/${id}/extract`);
+        setData(null);
+        setLoading(true);
+        setSubmitting(false);
+        setTimeout(() => load(), 500);
       }
     } catch (e: any) {
       setError(e.message);

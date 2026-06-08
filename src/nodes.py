@@ -403,10 +403,7 @@ def reduce_results(state: AgentState):
 
 
 def review_results(state: AgentState):
-    from langgraph.types import interrupt
-
-    decision = interrupt(state.get("review_decision", ""))
-    return {"review_decision": decision}
+    return {"review_decision": state.get("review_decision", "")}
 
 
 def incorporate_feedback(state: AgentState):
@@ -437,7 +434,7 @@ def after_review_route(state: AgentState) -> str:
         return "store_approved_result"
     if decision == "rejected":
         return "incorporate_feedback"
-    return "reduce_results"
+    return "__end__"
 
 
 def store_approved_result(state: AgentState):

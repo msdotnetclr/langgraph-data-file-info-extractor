@@ -83,11 +83,6 @@ async def event_generator(session_id: str, domain: str, source: str):
                 node_name = list(event.keys())[0]
                 node_data = event[node_name]
 
-                if node_name == "__interrupt__":
-                    session_store.update_status(session_id, "draft")
-                    yield f"data: {json.dumps({'type': 'complete', 'session_id': session_id, 'status': 'draft'})}\n\n"
-                    return
-
                 if node_name == "split_specification":
                     total_chunks = len(node_data.get("chunk_ranges", []))
                     yield f"data: {json.dumps({'type': 'status', 'phase': 'chunking', 'chunks': total_chunks})}\n\n"
@@ -102,10 +97,8 @@ async def event_generator(session_id: str, domain: str, source: str):
                     yield f"data: {json.dumps({'type': 'status', 'phase': 'reducing'})}\n\n"
                     await asyncio.sleep(0)
 
-                elif node_name == "review_results":
-                    session_store.update_status(session_id, "draft")
-                    yield f"data: {json.dumps({'type': 'complete', 'session_id': session_id, 'status': 'draft'})}\n\n"
-                    return
+            session_store.update_status(session_id, "draft")
+            yield f"data: {json.dumps({'type': 'complete', 'session_id': session_id, 'status': 'draft'})}\n\n"
 
     except Exception as e:
         import traceback
