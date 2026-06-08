@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, OutputTreeNode } from '../api/client';
+import { api, type OutputTreeNode } from '../api/client';
 
 export default function Outputs() {
   const [tree, setTree] = useState<OutputTreeNode[]>([]);

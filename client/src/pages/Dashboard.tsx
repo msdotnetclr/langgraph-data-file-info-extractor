@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, DomainInfo } from '../api/client';
+import { api, type DomainInfo } from '../api/client';
 
 export default function Dashboard() {
   const [domains, setDomains] = useState<DomainInfo[]>([]);

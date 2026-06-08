@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api, SSEEvent } from '../api/client';
+import { api, type SSEEvent } from '../api/client';
 
 export default function ExtractProgress() {
   const { id } = useParams<{ id: string }>();

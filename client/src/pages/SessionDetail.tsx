@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, SessionInfo } from '../api/client';
+import { api, type SessionInfo } from '../api/client';
 
 export default function SessionDetail() {
   const { id } = useParams<{ id: string }>();

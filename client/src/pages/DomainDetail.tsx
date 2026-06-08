@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api, SourceInfo, ContentResponse } from '../api/client';
+import { api, type SourceInfo, type ContentResponse } from '../api/client';
 import Modal from '../components/Modal';
 
 export default function DomainDetail() {

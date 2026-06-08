@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { api, ReviewData, FeedbackRound } from '../api/client';
+import { api, type ReviewData, type FeedbackRound } from '../api/client';
 
 export default function Review() {
   const { id } = useParams<{ id: string }>();

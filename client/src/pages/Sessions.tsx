@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, SessionInfo, InputTreeNode } from '../api/client';
+import { api, type SessionInfo, type InputTreeNode } from '../api/client';
 import Modal from '../components/Modal';
 import TreeView from '../components/TreeView';
 
