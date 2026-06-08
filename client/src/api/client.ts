@@ -165,7 +165,7 @@ export const api = {
     if (domain) params.set('domain', domain);
     if (source) params.set('source', source);
     const qs = params.toString();
-    return fetch(`/api/sessions/${encodeURIComponent(sessionId)}/start${qs ? '?' + qs : ''}`);
+    return fetch(`/api/sessions/${encodeURIComponent(sessionId)}/start${qs ? '?' + qs : ''}`, { method: 'POST' });
   },
 
   getReviewData: (sessionId: string) =>
