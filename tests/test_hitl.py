@@ -8,6 +8,7 @@ from src.nodes import (
 )
 from src.state import AgentState
 from src.session_manager import SESSIONS_ROOT
+from langgraph.graph import END
 
 TEST_SESSIONS = SESSIONS_ROOT
 
@@ -35,8 +36,8 @@ class TestAfterReviewRoute:
         assert after_review_route({"review_decision": "REJECTED"}) == "incorporate_feedback"
 
     def test_empty_decision_routes_to_end(self):
-        assert after_review_route({"review_decision": ""}) == "__end__"
-        assert after_review_route({"review_decision": "unknown"}) == "__end__"
+        assert after_review_route({"review_decision": ""}) is END
+        assert after_review_route({"review_decision": "unknown"}) is END
 
 
 class TestIncorporateFeedback:

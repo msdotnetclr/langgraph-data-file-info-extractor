@@ -3,6 +3,7 @@ import re
 import sys
 from typing import List, Optional, Dict, Any, Tuple
 
+from langgraph.graph import END
 from pydantic import BaseModel, Field
 
 from src.llm import (
@@ -434,7 +435,7 @@ def after_review_route(state: AgentState) -> str:
         return "store_approved_result"
     if decision == "rejected":
         return "incorporate_feedback"
-    return "__end__"
+    return END
 
 
 def store_approved_result(state: AgentState):
