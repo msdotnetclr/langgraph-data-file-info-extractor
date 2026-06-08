@@ -54,7 +54,9 @@ export default function ExtractProgress() {
                 const event: SSEEvent = JSON.parse(line.slice(6));
                 switch (event.type) {
                   case 'status':
-                    if (event.phase === 'chunking') {
+                    if (event.phase === 'starting') {
+                      setPhase('Initializing...');
+                    } else if (event.phase === 'chunking') {
                       setPhase('Chunking specification file...');
                       setProgress(`Found ${event.chunks} chunks`);
                     } else if (event.phase === 'reducing') {

@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from langgraph.checkpoint.sqlite import SqliteSaver
+from typing import Optional, AsyncIterator
+
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from src.storage import DATA_ROOT
 
@@ -13,9 +15,9 @@ SESSIONS_ROOT = DATA_ROOT / "sessions"
 CHECKPOINT_DB = SESSIONS_ROOT / "checkpoints.db"
 
 
-def get_sqlite_saver() -> SqliteSaver:
+def get_sqlite_saver() -> AsyncIterator[AsyncSqliteSaver]:
     SESSIONS_ROOT.mkdir(parents=True, exist_ok=True)
-    return SqliteSaver.from_conn_string(str(CHECKPOINT_DB))
+    return AsyncSqliteSaver.from_conn_string(str(CHECKPOINT_DB))
 
 
 class SessionMeta:
