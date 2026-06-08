@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, type SessionInfo, type InputTreeNode } from '../api/client';
 import Modal from '../components/Modal';
 import TreeView from '../components/TreeView';
@@ -17,6 +17,7 @@ export default function Sessions() {
   const [selectedDomain, setSelectedDomain] = useState('');
   const [selectedSource, setSelectedSource] = useState('');
   const [creating, setCreating] = useState(false);
+  const navigate = useNavigate();
 
   const load = () => {
     setLoading(true);
@@ -32,11 +33,11 @@ export default function Sessions() {
     if (!selectedDomain || !selectedSource) return;
     setCreating(true);
     try {
-      await api.createSession(selectedDomain, selectedSource);
+      const session = await api.createSession(selectedDomain, selectedSource);
       setShowCreate(false);
       setSelectedDomain('');
       setSelectedSource('');
-      load();
+      navigate(`/sessions/${session.session_id}`);
     } catch (e: any) {
       setError(e.message);
     } finally {
