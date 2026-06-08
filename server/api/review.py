@@ -95,7 +95,7 @@ async def submit_review(session_id: str, body: ReviewSubmit):
                 "review_decision": "rejected",
                 "human_feedback": human_feedback,
             }
-            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.update_state, config, resume_state)
             await asyncio.to_thread(graph.invoke, None, config)
             session_store.update_status(session_id, "draft")
 
@@ -104,7 +104,7 @@ async def submit_review(session_id: str, body: ReviewSubmit):
                 "review_decision": "approved",
                 "human_feedback": "",
             }
-            graph.update_state(config, resume_state)
+            await asyncio.to_thread(graph.update_state, config, resume_state)
             await asyncio.to_thread(graph.invoke, None, config)
             session_store.update_status(session_id, "approved")
 
