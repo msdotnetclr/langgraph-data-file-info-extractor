@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from server.api.schemas import (
     ContentResponse,
@@ -50,12 +50,21 @@ async def delete_source(domain: str, source: str):
 
 
 @router.post("/api/domains/{domain}/sources/{source}/upload-spec", response_model=OKResponse)
-async def upload_spec(domain: str, source: str, body: ContentUpdate):
+async def upload_spec(
+    domain: str,
+    source: str,
+    body: ContentUpdate,
+    strip_empty_lines: bool = Query(True),
+):
     if not store.domain_exists(domain):
         raise HTTPException(status_code=404, detail="Domain not found")
     if not store.source_exists(domain, source):
         raise HTTPException(status_code=404, detail="Source not found")
-    store.save_spec(domain, source, body.content)
+    content = body.content
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    if strip_empty_lines:
+        content = "\n".join(line for line in content.split("\n") if line.strip())
+    store.save_spec(domain, source, content)
     return OKResponse()
 
 
