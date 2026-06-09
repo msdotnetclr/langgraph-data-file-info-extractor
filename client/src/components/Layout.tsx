@@ -17,8 +17,8 @@ export default function Layout() {
         <div className={`p-4 border-b border-gray-100 flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
           {!collapsed && (
             <div>
-              <h1 className="text-lg font-bold text-gray-800">Data Extractor</h1>
-              <p className="text-xs text-gray-400 mt-0.5">File Info Extractor</p>
+              <h1 className="text-lg font-bold text-gray-800">Data Assistant</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Source Data Spec Extractor</p>
             </div>
           )}
           <button

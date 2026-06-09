@@ -1,4 +1,4 @@
-# Data File Info Extractor
+# Source Data Spec Extractor
 
 A LangGraph agent that reads data specification documents, splits them into overlapping chunks, processes them sequentially with context carry-forward, and extracts structured JSON with file-level and field-level metadata.
 

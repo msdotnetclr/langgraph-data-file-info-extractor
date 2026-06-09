@@ -8,7 +8,7 @@ from server.api.extract import router as extract_router
 from server.api.review import router as review_router
 from server.api.outputs import router as outputs_router
 
-app = FastAPI(title="Data File Info Extractor")
+app = FastAPI(title="Source Data Spec Extractor")
 
 app.add_middleware(
     CORSMiddleware,
