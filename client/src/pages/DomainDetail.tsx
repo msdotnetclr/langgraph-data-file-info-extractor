@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, type SourceInfo, type ContentResponse } from '../api/client';
 import Modal from '../components/Modal';
+import LinedContent from '../components/LinedContent';
+import LinedTextarea from '../components/LinedTextarea';
 
 export default function DomainDetail() {
   const { name } = useParams<{ name: string }>();
@@ -31,6 +33,7 @@ export default function DomainDetail() {
   const [specSaving, setSpecSaving] = useState(false);
   const [specUploading, setSpecUploading] = useState(false);
 
+  const [stripEmptyLines, setStripEmptyLines] = useState(true);
   const [viewContent, setViewContent] = useState('');
   const [viewLabel, setViewLabel] = useState('');
   const [showViewModal, setShowViewModal] = useState(false);
@@ -80,7 +83,7 @@ export default function DomainDetail() {
       await api.createSource(domain, newSourceName.trim());
       if (newSourceFile) {
         const content = await newSourceFile.text();
-        await api.uploadSpec(domain, newSourceName.trim(), content);
+        await api.uploadSpec(domain, newSourceName.trim(), content, stripEmptyLines);
       }
       setNewSourceName('');
       setNewSourceFile(null);
@@ -148,7 +151,7 @@ export default function DomainDetail() {
     setSpecUploading(true);
     try {
       const content = await entry.file.text();
-      await api.uploadSpec(domain, sourceName, content);
+      await api.uploadSpec(domain, sourceName, content, stripEmptyLines);
       setSpecContent(content);
       setSelectedFiles((prev) => {
         const next = new Map(prev);
@@ -219,11 +222,10 @@ export default function DomainDetail() {
         {instLoading ? (
           <p className="text-gray-500 text-sm">Loading...</p>
         ) : (
-          <textarea
+          <LinedTextarea
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={8}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Enter domain-specific instructions in markdown..."
           />
         )}
@@ -324,6 +326,22 @@ export default function DomainDetail() {
                               />
                               {sel && (
                                 <button
+                                  onClick={() => {
+                                    const inputEl = fileInputRefs.current.get(s.name);
+                                    if (inputEl) inputEl.value = '';
+                                    setSelectedFiles((prev) => {
+                                      const next = new Map(prev);
+                                      next.delete(s.name);
+                                      return next;
+                                    });
+                                  }}
+                                  className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm font-medium flex-shrink-0"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                              {sel && (
+                                <button
                                   onClick={() => handleUpload(s.name)}
                                   disabled={specUploading}
                                   className="px-4 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
@@ -337,6 +355,15 @@ export default function DomainDetail() {
                                 Selected: <span className="font-medium">{sel.name}</span> — will be saved as <span className="font-mono">source_specs.md</span>
                               </p>
                             )}
+                            <label className="flex items-center gap-2 mt-2 text-sm text-gray-600 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={stripEmptyLines}
+                                onChange={(e) => setStripEmptyLines(e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              Strip empty lines
+                            </label>
                           </div>
 
                           {specExisting && sel && (
@@ -360,9 +387,7 @@ export default function DomainDetail() {
       </div>
 
       <Modal open={showViewModal} onClose={() => setShowViewModal(false)} title={viewLabel} wide>
-        <pre className="bg-gray-50 border border-gray-200 rounded-md p-4 text-xs text-gray-700 overflow-auto max-h-96 font-mono whitespace-pre-wrap">
-          {viewContent || <span className="text-gray-400">(empty)</span>}
-        </pre>
+        <LinedContent content={viewContent} emptyLabel="(empty)" />
         <div className="flex justify-end mt-3">
           <button
             onClick={() => setShowViewModal(false)}
@@ -397,6 +422,15 @@ export default function DomainDetail() {
               Selected: <span className="font-medium">{newSourceFile.name}</span> — will be saved as <span className="font-mono">source_specs.md</span>
             </p>
           )}
+          <label className="flex items-center gap-2 mt-2 text-sm text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={stripEmptyLines}
+              onChange={(e) => setStripEmptyLines(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            Strip empty lines
+          </label>
         </div>
         <div className="flex justify-end gap-2">
           <button

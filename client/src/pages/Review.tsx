@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, type ReviewData, type FeedbackRound } from '../api/client';
 import WorkflowVisualizer from '../components/WorkflowVisualizer';
+import LinedContent from '../components/LinedContent';
 
 export default function Review() {
   const { id } = useParams<{ id: string }>();
@@ -229,9 +230,7 @@ export default function Review() {
           )}
 
           {activeTab === 'raw' && (
-            <pre className="bg-gray-50 rounded-md p-4 text-xs text-gray-700 overflow-auto max-h-96 font-mono">
-              {JSON.stringify(result, null, 2)}
-            </pre>
+            <LinedContent content={JSON.stringify(result, null, 2)} />
           )}
         </div>
       </div>

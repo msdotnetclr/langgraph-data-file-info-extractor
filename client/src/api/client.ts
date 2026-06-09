@@ -202,11 +202,18 @@ export const api = {
       method: 'DELETE',
     }),
 
-  uploadSpec: (domain: string, source: string, content: string) =>
-    request<OKResponse>(`/domains/${encodeURIComponent(domain)}/sources/${encodeURIComponent(source)}/upload-spec`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    }),
+  uploadSpec: (domain: string, source: string, content: string, stripEmptyLines?: boolean) => {
+    const params = new URLSearchParams();
+    if (stripEmptyLines !== undefined) params.set('strip_empty_lines', String(stripEmptyLines));
+    const qs = params.toString();
+    return request<OKResponse>(
+      `/domains/${encodeURIComponent(domain)}/sources/${encodeURIComponent(source)}/upload-spec${qs ? `?${qs}` : ''}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      },
+    );
+  },
 
   getSpec: (domain: string, source: string) =>
     request<ContentResponse>(`/domains/${encodeURIComponent(domain)}/sources/${encodeURIComponent(source)}/spec`),

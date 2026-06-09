@@ -7,6 +7,7 @@ import {
   type VersionDiff,
   type VersionChainItem,
 } from '../api/client';
+import LinedContent from '../components/LinedContent';
 
 type DetailView = 'versions' | 'diff';
 
@@ -628,9 +629,7 @@ export default function Outputs() {
                     <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
                       Raw JSON
                     </summary>
-                    <pre className="mt-2 bg-gray-50 rounded-md p-3 text-xs text-gray-700 overflow-auto max-h-64 font-mono">
-                      {JSON.stringify(output.data, null, 2)}
-                    </pre>
+                    <LinedContent content={JSON.stringify(output.data, null, 2)} className="mt-2" maxH="max-h-64" />
                   </details>
                 </>
               )}
