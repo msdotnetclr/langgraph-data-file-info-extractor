@@ -138,7 +138,11 @@ export default function Sessions() {
             </thead>
             <tbody>
               {sessions.map((s) => (
-                <tr key={s.session_id} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr
+                  key={s.session_id}
+                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                  onDoubleClick={() => navigate(`/sessions/${s.session_id}`)}
+                >
                   <td className="px-4 py-3 text-sm text-gray-800">{s.domain}</td>
                   <td className="px-4 py-3 text-sm text-gray-800">{s.source}</td>
                   <td className="px-4 py-3">

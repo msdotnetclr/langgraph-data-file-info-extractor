@@ -92,7 +92,11 @@ export default function DomainList() {
             </thead>
             <tbody>
               {domains.map((d) => (
-                <tr key={d.name} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr
+                  key={d.name}
+                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                  onDoubleClick={() => navigate(`/domains/${encodeURIComponent(d.name)}`)}
+                >
                   <td className="px-4 py-3">
                     <Link to={`/domains/${encodeURIComponent(d.name)}`} className="text-blue-600 hover:text-blue-800 font-medium">
                       {d.name}

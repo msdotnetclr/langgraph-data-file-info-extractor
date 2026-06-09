@@ -40,13 +40,13 @@ START
                      │  /api/input-tree            │
                      └─────────────┬───────────────┘
                                    │
-               ┌───────────────────┼───────────────────┐
-               ▼                   ▼                   ▼
-        ┌──────────┐       ┌────────────┐      ┌──────────────┐
-        │  src/    │       │ SqliteSaver │      │  File Store  │
-        │ LangGraph│       │ checkpoint │      │  data/{input,│
-        │  agent   │       │  sessions  │      │   output}/   │
-        └──────────┘       └────────────┘      └──────────────┘
+                ┌───────────────────┼───────────────────┐
+                ▼                   ▼                   ▼
+         ┌──────────┐       ┌───────────────┐    ┌──────────────┐
+         │  src/    │       │ AsyncSqlite   │    │  File Store  │
+         │ LangGraph│       │  Saver +      │    │  data/{input,│
+         │  agent   │       │  aiosqlite    │    │   output}/   │
+         └──────────┘       └───────────────┘    └──────────────┘
 ```
 
 ### CLI Path
@@ -72,7 +72,7 @@ project/
 │   ├── nodes.py                    # All graph nodes (extract, review, feedback)
 │   ├── llm.py                      # LLM client, retry, prompt builder, summarizer
 │   ├── storage.py                  # InputStore + OutputStore (file-based)
-│   ├── session_manager.py          # SessionStore + SqliteSaver lifecycle
+│   ├── session_manager.py          # SessionStore + AsyncSqliteSaver lifecycle
 │   └── tools.py                    # (reserved)
 │
 ├── server/                         # FastAPI backend
@@ -98,10 +98,11 @@ project/
 │           ├── SessionDetail.tsx   # Session info + start/review buttons
 │           ├── ExtractProgress.tsx # SSE live progress bar
 │           ├── Review.tsx          # Tabbed results + approve/re-run
+│           ├── NotFound.tsx        # 404 page
 │           └── Outputs.tsx         # Output store tree browser + viewer
 │
 ├── tests/
-│   ├── test_nodes.py               # Splitter, merge, error classification (67 tests)
+│   ├── test_nodes.py               # Splitter, merge, error classification (60 tests)
 │   ├── test_reduce.py              # Reduce node (7 tests)
 │   ├── test_hitl.py                # Review/feedback routing + nodes (8 tests)
 │   ├── test_session_manager.py     # SessionStore lifecycle (14 tests)
@@ -234,7 +235,7 @@ data/
 │           └── {session_id}_{timestamp}.json   # Approved results only
 │
 └── sessions/
-    ├── checkpoints.db                  # SQLite (SqliteSaver checkpoints)
+    ├── checkpoints.db                  # SQLite (AsyncSqliteSaver checkpoints)
     └── {session_id}/
         └── metadata.json               # Session metadata + feedback rounds
 ```
@@ -324,6 +325,6 @@ uv run pytest tests/ -v
 | Agent | LangGraph |
 | LLM | DeepSeek / Azure OpenAI (via LangChain) |
 | API Server | FastAPI + Uvicorn |
-| Checkpoints | SqliteSaver (SQLite) |
+| Checkpoints | AsyncSqliteSaver (SQLite + aiosqlite) |
 | Storage | File-based (JSON, Markdown) |
 | Frontend | React 19 + TypeScript + Vite + Tailwind CSS 4 |

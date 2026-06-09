@@ -250,7 +250,11 @@ export default function DomainDetail() {
               const isOpen = editingSource === s.name;
               const sel = selectedFiles.get(s.name);
               return (
-                <div key={s.name} className="border border-gray-100 rounded-md">
+                <div
+                  key={s.name}
+                  className={`border border-gray-100 rounded-md ${s.has_spec ? 'cursor-pointer' : ''}`}
+                  onDoubleClick={() => s.has_spec && handleNewSession(s.name)}
+                >
                   <div className="flex items-center justify-between py-2 px-3 hover:bg-gray-50">
                     <button
                       onClick={() => openSource(s.name)}
