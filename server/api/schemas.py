@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 
 class DomainCreate(BaseModel):
@@ -81,3 +82,68 @@ class ReviewData(BaseModel):
     result: ExtractionResult
     feedback_rounds: list[FeedbackRound] = []
 
+
+class VersionEntry(BaseModel):
+    version: int
+    session_id: str
+    created_at: str
+    filename: str
+    based_on_version: Optional[int] = None
+    feedback_rounds: int = 0
+
+
+class OutputManifest(BaseModel):
+    domain: str
+    source: str
+    latest_version: int
+    versions: list[VersionEntry]
+
+
+class MetadataDiff(BaseModel):
+    added: dict = {}
+    removed: dict = {}
+    changed: dict = {}
+
+
+class FieldDiffItem(BaseModel):
+    key: dict
+    changes: dict
+
+
+class FieldsDiff(BaseModel):
+    added: list[dict] = []
+    removed: list[dict] = []
+    changed: list[FieldDiffItem] = []
+
+
+class WarningsDiff(BaseModel):
+    added: list[str] = []
+    removed: list[str] = []
+
+
+class VersionDiff(BaseModel):
+    v1: int
+    v2: int
+    v1_session_id: str
+    v2_session_id: str
+    v1_created_at: str
+    v2_created_at: str
+    file_metadata: MetadataDiff
+    fields: FieldsDiff
+    warnings: WarningsDiff
+
+
+class VersionChainItem(BaseModel):
+    version: int
+    session_id: str
+    created_at: str
+    feedback_rounds: int
+    is_based_on_feedback: bool
+
+
+class OutputWithVersion(BaseModel):
+    version: int
+    session_id: str
+    created_at: str
+    based_on_version: Optional[int] = None
+    data: dict

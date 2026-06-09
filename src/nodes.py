@@ -446,6 +446,16 @@ def store_approved_result(state: AgentState):
     if domain and source and session_id:
         from src.storage import OutputStore
 
+        feedback_rounds = 0
+        try:
+            from src.session_manager import SessionStore
+            session_store = SessionStore()
+            meta = session_store.get(session_id)
+            if meta:
+                feedback_rounds = len(meta.feedback_rounds)
+        except Exception:
+            pass
+
         store = OutputStore()
         store.save_output(
             domain=domain,
@@ -456,6 +466,7 @@ def store_approved_result(state: AgentState):
                 "fields": state.get("fields", []),
                 "warnings": state.get("warnings", []),
             },
+            feedback_rounds=feedback_rounds,
         )
 
     return {

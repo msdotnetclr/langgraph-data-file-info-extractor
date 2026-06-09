@@ -87,15 +87,87 @@ export interface SSEEvent {
   message?: string;
 }
 
-export interface OutputTreeNode {
-  domain: string;
-  sources: Array<{ name: string; outputs: string[] }>;
+export interface SourceSummary {
+  name: string;
+  latest_version: number;
+  total_versions: number;
 }
 
-export interface OutputFileList {
+export interface OutputTreeNode {
+  domain: string;
+  sources: SourceSummary[];
+}
+
+export interface VersionEntry {
+  version: number;
+  session_id: string;
+  created_at: string;
+  filename: string;
+  based_on_version: number | null;
+  feedback_rounds: number;
+}
+
+export interface VersionFileList {
   domain: string;
   source: string;
-  outputs: string[];
+  latest_version: number;
+  versions: VersionEntry[];
+}
+
+export interface OutputWithVersion {
+  version: number;
+  session_id: string;
+  created_at: string;
+  based_on_version: number | null;
+  data: Record<string, unknown>;
+}
+
+export interface MetadataDiff {
+  added: Record<string, unknown>;
+  removed: Record<string, unknown>;
+  changed: Record<string, { old: unknown; new: unknown }>;
+}
+
+export interface FieldDiffItem {
+  key: { field_group: string; field_index: number | null; field_name: string };
+  changes: Record<string, { old: unknown; new: unknown }>;
+}
+
+export interface FieldsDiff {
+  added: Array<Record<string, unknown>>;
+  removed: Array<Record<string, unknown>>;
+  changed: FieldDiffItem[];
+}
+
+export interface WarningsDiff {
+  added: string[];
+  removed: string[];
+}
+
+export interface VersionDiff {
+  v1: number;
+  v2: number;
+  v1_session_id: string;
+  v2_session_id: string;
+  v1_created_at: string;
+  v2_created_at: string;
+  file_metadata: MetadataDiff;
+  fields: FieldsDiff;
+  warnings: WarningsDiff;
+}
+
+export interface VersionChainItem {
+  version: number;
+  session_id: string;
+  created_at: string;
+  feedback_rounds: number;
+  is_based_on_feedback: boolean;
+}
+
+export interface VersionChainResponse {
+  domain: string;
+  source: string;
+  chain: VersionChainItem[];
 }
 
 export const api = {
@@ -179,8 +251,27 @@ export const api = {
 
   listOutputTree: () => request<OutputTreeNode[]>('/outputs'),
 
-  listOutputs: (domain: string, source: string) =>
-    request<OutputFileList>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}`),
+  listOutputVersions: (domain: string, source: string) =>
+    request<VersionFileList>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}`),
+
+  getLatestOutput: (domain: string, source: string) =>
+    request<OutputWithVersion>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/latest`),
+
+  getOutputByVersion: (domain: string, source: string, version: number) =>
+    request<OutputWithVersion>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/versions/${version}`),
+
+  diffOutputs: (domain: string, source: string, v1: number, v2: number) =>
+    request<VersionDiff>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/diff?v1=${v1}&v2=${v2}`),
+
+  getVersionChain: (domain: string, source: string, version?: number) => {
+    const qs = version !== undefined ? `?version=${version}` : '';
+    return request<VersionChainResponse>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/chain${qs}`);
+  },
+
+  getManifest: (domain: string, source: string) =>
+    request<{ domain: string; source: string; latest_version: number; versions: VersionEntry[] }>(
+      `/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/manifest`
+    ),
 
   getOutput: (domain: string, source: string, filename: string) =>
     request<Record<string, unknown>>(`/outputs/${encodeURIComponent(domain)}/${encodeURIComponent(source)}/${encodeURIComponent(filename)}`),
