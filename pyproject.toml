@@ -3,9 +3,10 @@ name = "lg-01"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=24.0.0",
+    "azure-identity>=1.16.0",
     "fastapi>=0.115.0",
     "langchain-deepseek>=1.0.1",
     "langchain-openai>=0.3.0",

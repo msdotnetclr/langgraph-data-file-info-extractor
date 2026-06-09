@@ -13,7 +13,10 @@ def _check_api_key():
     provider = os.getenv("LLM_PROVIDER", "deepseek").strip().lower()
 
     if provider == "azure_openai":
-        required = ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_DEPLOYMENT_NAME"]
+        use_ad_auth = os.getenv("AZURE_OPENAI_USE_AD_AUTH", "").lower() in ("true", "1", "yes")
+        required = ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_DEPLOYMENT_NAME"]
+        if not use_ad_auth:
+            required.append("AZURE_OPENAI_API_KEY")
         missing = [v for v in required if not os.getenv(v)]
         if missing:
             print(f"ERROR: Azure OpenAI is missing: {', '.join(missing)}", file=sys.stderr)

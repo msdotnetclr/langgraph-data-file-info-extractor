@@ -113,17 +113,44 @@ def _create_llm():
         api_key = os.getenv("AZURE_OPENAI_API_KEY", "")
         deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "")
         api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
+        use_ad_auth = os.getenv("AZURE_OPENAI_USE_AD_AUTH", "").lower() in ("true", "1", "yes")
 
-        if not all([endpoint, api_key, deployment]):
+        if not all([endpoint, deployment]):
             missing = []
             if not endpoint:
                 missing.append("AZURE_OPENAI_ENDPOINT")
-            if not api_key:
-                missing.append("AZURE_OPENAI_API_KEY")
             if not deployment:
                 missing.append("AZURE_OPENAI_DEPLOYMENT_NAME")
             raise ValueError(
                 f"Azure OpenAI is missing required configuration: {', '.join(missing)}"
+            )
+
+        if use_ad_auth:
+            try:
+                from azure.identity import DefaultAzureCredential
+            except ImportError:
+                raise ImportError(
+                    "azure-identity is required for Azure AD authentication. "
+                    "Install it with: pip install azure-identity"
+                )
+
+            credential = DefaultAzureCredential()
+            token_provider = lambda: credential.get_token(
+                "https://cognitiveservices.azure.com/.default"
+            ).token
+
+            return AzureChatOpenAI(
+                azure_endpoint=endpoint,
+                azure_ad_token_provider=token_provider,
+                api_version=api_version,
+                azure_deployment=deployment,
+                temperature=0,
+            )
+
+        if not api_key:
+            raise ValueError(
+                "AZURE_OPENAI_API_KEY is not set. Set it in .env or enable Azure AD auth "
+                "with AZURE_OPENAI_USE_AD_AUTH=true."
             )
 
         return AzureChatOpenAI(
