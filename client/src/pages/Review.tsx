@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api, type ReviewData, type FeedbackRound } from '../api/client';
+import WorkflowVisualizer from '../components/WorkflowVisualizer';
 
 export default function Review() {
   const { id } = useParams<{ id: string }>();
@@ -13,12 +14,23 @@ export default function Review() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [expandedFeedback, setExpandedFeedback] = useState<Set<number>>(new Set());
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+  const [completedNodes, setCompletedNodes] = useState<string[]>([]);
 
   const load = () => {
     if (!id) return;
     setLoading(true);
     api.getReviewData(id)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        if (d.status === 'approved') {
+          setCompletedNodes(['split_specification', 'extract_next_chunk', 'reduce_results', 'review_results', 'store_approved_result']);
+          setActiveNode(null);
+        } else {
+          setCompletedNodes(['split_specification', 'extract_next_chunk', 'reduce_results']);
+          setActiveNode('review_results');
+        }
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   };
@@ -35,9 +47,23 @@ export default function Review() {
         decision === 'rejected' ? feedback : ''
       );
       if (decision === 'approved') {
+        setCompletedNodes((prev) => {
+          const next = [...prev, 'review_results'];
+          return next.includes('store_approved_result') ? next : [...next, 'store_approved_result'];
+        });
+        setActiveNode('store_approved_result');
         setData((prev) => prev ? { ...prev, status: 'approved' } : prev);
-        setTimeout(() => navigate('/sessions'), 1500);
+        setTimeout(() => {
+          setActiveNode(null);
+          setCompletedNodes((prev) => prev.includes('store_approved_result') ? prev : [...prev, 'store_approved_result']);
+          navigate('/sessions');
+        }, 1500);
       } else {
+        setCompletedNodes((prev) => {
+          const next = [...prev, 'review_results'];
+          return next.includes('incorporate_feedback') ? next : next;
+        });
+        setActiveNode('incorporate_feedback');
         setFeedback('');
         setShowFeedback(false);
         setData(null);
@@ -115,6 +141,11 @@ export default function Review() {
           ))}
         </div>
       )}
+
+      <WorkflowVisualizer
+        activeNode={activeNode}
+        completedNodes={completedNodes}
+      />
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
         <div className="flex border-b border-gray-200">

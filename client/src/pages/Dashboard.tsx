@@ -1,20 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type DomainInfo } from '../api/client';
+import { api, type DomainInfo, type SessionInfo } from '../api/client';
 
 export default function Dashboard() {
   const [domains, setDomains] = useState<DomainInfo[]>([]);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.listDomains()
-      .then(setDomains)
+    Promise.all([
+      api.listDomains(),
+      api.listSessions(),
+    ])
+      .then(([d, s]) => {
+        setDomains(d);
+        setSessions(s);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
   const totalSources = domains.reduce((s, d) => s + d.source_count, 0);
+  const draftCount = sessions.filter((s) => s.status === 'draft').length;
+  const approvedCount = sessions.filter((s) => s.status === 'approved').length;
 
   return (
     <div>
@@ -29,7 +38,7 @@ export default function Dashboard() {
       {loading ? (
         <p className="text-gray-500">Loading...</p>
       ) : (
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <p className="text-sm text-gray-500 mb-1">Domains</p>
             <p className="text-3xl font-bold text-gray-900">{domains.length}</p>
@@ -40,7 +49,15 @@ export default function Dashboard() {
           </div>
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <p className="text-sm text-gray-500 mb-1">Sessions</p>
-            <p className="text-3xl font-bold text-gray-400">&mdash;</p>
+            <p className="text-3xl font-bold text-gray-900">{sessions.length}</p>
+            <div className="flex gap-3 mt-2">
+              <span className="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">
+                {draftCount} drafts
+              </span>
+              <span className="text-xs text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                {approvedCount} approved
+              </span>
+            </div>
           </div>
         </div>
       )}

@@ -454,8 +454,8 @@ export default function Outputs() {
         </div>
       )}
 
-      <div className="flex gap-6">
-        <div className="w-80 flex-shrink-0">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="w-full lg:w-80 lg:flex-shrink-0">
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Browse</h3>
             {loading ? (
@@ -551,7 +551,7 @@ export default function Outputs() {
           </div>
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {view === 'diff' && diff ? (
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-3">

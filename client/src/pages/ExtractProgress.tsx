@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { api, type SSEEvent, type SessionInfo } from '../api/client';
+import WorkflowVisualizer from '../components/WorkflowVisualizer';
 
 export default function ExtractProgress() {
   const { id } = useParams<{ id: string }>();
@@ -12,6 +13,10 @@ export default function ExtractProgress() {
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+  const [completedNodes, setCompletedNodes] = useState<string[]>([]);
+  const [chunkCurrent, setChunkCurrent] = useState(0);
+  const [chunkTotal, setChunkTotal] = useState(0);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
 
   useEffect(() => {
@@ -59,19 +64,33 @@ export default function ExtractProgress() {
                     } else if (event.phase === 'chunking') {
                       setPhase('Chunking specification file...');
                       setProgress(`Found ${event.chunks} chunks`);
+                      setChunkTotal(event.chunks || 0);
+                      setActiveNode('split_specification');
                     } else if (event.phase === 'reducing') {
                       setPhase('Reducing results...');
                       setProgress('');
+                      setCompletedNodes((prev) => prev.includes('extract_next_chunk') ? prev : [...prev, 'extract_next_chunk']);
+                      setActiveNode('reduce_results');
                     }
                     break;
                   case 'progress':
                     setPhase('Extracting fields');
                     setProgress(`Processing chunk ${event.chunk} of ${event.total}`);
+                    setChunkCurrent(event.chunk || 0);
+                    setCompletedNodes((prev) => prev.includes('split_specification') ? prev : [...prev, 'split_specification']);
+                    setActiveNode('extract_next_chunk');
                     break;
                   case 'complete':
                     setPhase('Extraction complete');
                     setProgress('Ready for review');
                     setDone(true);
+                    setChunkCurrent(chunkTotal);
+                    setCompletedNodes((prev) => {
+                      const base = ['split_specification', 'extract_next_chunk', 'reduce_results'];
+                      const merged = new Set([...prev, ...base]);
+                      return [...merged];
+                    });
+                    setActiveNode('review_results');
                     setTimeout(() => navigate(`/sessions/${id}/review`), 1500);
                     break;
                   case 'error':
@@ -100,6 +119,14 @@ export default function ExtractProgress() {
   return (
     <div className="max-w-2xl mx-auto py-12">
       <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Extraction Progress</h2>
+
+      <WorkflowVisualizer
+        activeNode={activeNode}
+        completedNodes={completedNodes}
+        chunkCurrent={chunkCurrent}
+        chunkTotal={chunkTotal}
+        defaultVisible
+      />
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
