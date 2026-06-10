@@ -176,7 +176,7 @@ project/
 
 ### Prerequisites
 
-- Python 3.13+
+- Python 3.11+
 - [uv](https://docs.astral.sh/uv/) (for Python dependencies)
 - Node.js 18+ and npm (for the React frontend)
 
