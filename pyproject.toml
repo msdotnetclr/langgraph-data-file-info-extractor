@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.30.0",
+    "pip-system-certs,
 ]
 
 [tool.pytest.ini_options]
