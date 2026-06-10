@@ -30,3 +30,5 @@
 - Auto-redirect after creating domains and sessions
 - One-step source setup with file upload
 - Re-run failed extractions directly from the session detail page
+- "Submit Feedback & Re-run" button shows "Submitting..." → "Re-processing..." → done transition
+- **Identity-based field diff** — output version comparison matches fields by `(group, name)`, so index-only changes show as "reordered" (blue) instead of false remove+add

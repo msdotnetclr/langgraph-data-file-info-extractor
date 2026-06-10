@@ -257,7 +257,7 @@ Open http://localhost:5173 in your browser.
 
 - Choose an action:
   - **Approve** — saves the result as a new version in the **Output Store**, summarizes any accumulated feedback into `domain_instructions.md` (via LLM), and marks the session as approved
-  - **Re-run with Feedback** — opens a markdown editor for detailed instructions; feedback is appended and the extraction re-runs with the new instructions injected into the prompt
+   - **Re-run with Feedback** — opens a markdown editor for detailed instructions; feedback is appended and the extraction re-runs with the new instructions injected into the prompt. The button shows "Submitting..." while the API call is in flight, then "Re-processing..." while the results reload.
   - **Delete** — removes the session
 
 ### 4. Browse Outputs
@@ -268,7 +268,8 @@ Open http://localhost:5173 in your browser.
 - The **version chain breadcrumb** shows the lineage: `v1 → v2 (feedback) → v3 LATEST`
 - **Compare** two versions to see a structured diff:
   - File metadata changes (old → new table)
-  - Fields added (green), removed (red), modified (yellow with per-attribute diff)
+  - Fields added (green), removed (red), modified (yellow with per-attribute diff), or reordered (blue — field renamed/indexed without other changes)
+  - Identity-based matching: fields are matched by `(group, name)` so index-only shifts don't appear as remove+add
   - Warnings added/removed
 - Click **Swap** to reverse comparison direction
 
