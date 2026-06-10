@@ -130,6 +130,7 @@ export interface MetadataDiff {
 
 export interface FieldDiffItem {
   key: { field_group: string; field_index: number | null; field_name: string };
+  new_key?: { field_group: string; field_index: number | null; field_name: string };
   changes: Record<string, { old: unknown; new: unknown }>;
 }
 

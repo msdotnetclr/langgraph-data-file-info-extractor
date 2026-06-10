@@ -303,14 +303,20 @@ export default function Outputs() {
                   </span>
                 </div>
               ))}
-              {diff.fields.changed.map((item, i) => (
-                <div key={`chg-${i}`} className="bg-yellow-50 border border-yellow-200 rounded-md px-3 py-2">
-                  <span className="text-xs font-semibold text-yellow-700">~ MODIFIED</span>
+              {diff.fields.changed.map((item, i) => {
+                const changesEntries = Object.entries(item.changes);
+                const indexOnly = changesEntries.length === 1 && changesEntries[0][0] === 'field_index';
+                const label = indexOnly ? '\u21C5 REORDERED' : '~ MODIFIED';
+                const labelColor = indexOnly ? 'text-blue-700' : 'text-yellow-700';
+                const bgColor = indexOnly ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200';
+                return (
+                <div key={`chg-${i}`} className={`${bgColor} rounded-md px-3 py-2`}>
+                  <span className={`text-xs font-semibold ${labelColor}`}>{label}</span>
                   <span className="ml-2 text-xs text-gray-700">
                     [{item.key.field_group}] {item.key.field_name}
                   </span>
                   <div className="mt-1 ml-4 text-xs space-y-0.5">
-                    {Object.entries(item.changes).map(([attr, { old, new: nv }]) => (
+                    {changesEntries.map(([attr, { old, new: nv }]) => (
                       <div key={attr} className="flex gap-2">
                         <span className="text-gray-500 w-24 shrink-0">{attr}:</span>
                         <span className="text-red-600 bg-red-50 px-1 rounded line-through">
@@ -324,7 +330,8 @@ export default function Outputs() {
                     ))}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

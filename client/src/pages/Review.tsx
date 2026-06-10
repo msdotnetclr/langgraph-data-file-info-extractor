@@ -14,6 +14,7 @@ export default function Review() {
   const [feedback, setFeedback] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [expandedFeedback, setExpandedFeedback] = useState<Set<number>>(new Set());
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [completedNodes, setCompletedNodes] = useState<string[]>([]);
@@ -67,10 +68,25 @@ export default function Review() {
         setActiveNode('incorporate_feedback');
         setFeedback('');
         setShowFeedback(false);
-        setData(null);
-        setLoading(true);
         setSubmitting(false);
-        setTimeout(() => load(), 500);
+        setReprocessing(true);
+        setLoading(true);
+        api.getReviewData(id)
+          .then((d) => {
+            setData(d);
+            if (d.status === 'approved') {
+              setCompletedNodes(['split_specification', 'extract_next_chunk', 'reduce_results', 'review_results', 'store_approved_result']);
+              setActiveNode(null);
+            } else {
+              setCompletedNodes(['split_specification', 'extract_next_chunk', 'reduce_results']);
+              setActiveNode('review_results');
+            }
+          })
+          .catch((e) => setError(e.message))
+          .finally(() => {
+            setLoading(false);
+            setReprocessing(false);
+          });
       }
     } catch (e: any) {
       setError(e.message);
@@ -250,10 +266,10 @@ export default function Review() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleSubmit('rejected')}
-                  disabled={submitting || !feedback.trim()}
+                  disabled={submitting || reprocessing || !feedback.trim()}
                   className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Feedback & Re-run'}
+                  {submitting ? 'Submitting...' : reprocessing ? 'Re-processing...' : 'Submit Feedback & Re-run'}
                 </button>
                 <button
                   onClick={() => { setShowFeedback(false); setFeedback(''); }}
@@ -274,9 +290,10 @@ export default function Review() {
               </button>
               <button
                 onClick={() => setShowFeedback(true)}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700"
+                disabled={reprocessing}
+                className="px-4 py-2 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
               >
-                Re-run with Feedback
+                {reprocessing ? 'Re-processing...' : 'Re-run with Feedback'}
               </button>
               <Link
                 to={`/sessions`}

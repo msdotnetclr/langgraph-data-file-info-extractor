@@ -402,41 +402,72 @@ class OutputStore:
     def _diff_fields(
         old_fields: list, new_fields: list
     ) -> dict:
-        def make_key(f: dict) -> tuple:
+        def identity(f: dict) -> tuple:
             return (
-                f.get("field_group", ""),
-                f.get("field_index"),
-                f.get("field_name", ""),
+                (f.get("field_group") or "").strip().lower(),
+                (f.get("field_name") or "").strip().lower(),
             )
 
-        old_map = {make_key(f): f for f in old_fields}
-        new_map = {make_key(f): f for f in new_fields}
+        old_by_id: dict = {}
+        for f in old_fields:
+            key = identity(f)
+            old_by_id.setdefault(key, []).append(f)
 
-        old_keys = set(old_map.keys())
-        new_keys = set(new_map.keys())
+        new_by_id: dict = {}
+        for f in new_fields:
+            key = identity(f)
+            new_by_id.setdefault(key, []).append(f)
 
-        added_keys = new_keys - old_keys
-        removed_keys = old_keys - new_keys
-        common_keys = old_keys & new_keys
+        old_ids = set(old_by_id.keys())
+        new_ids = set(new_by_id.keys())
 
-        added = [new_map[k] for k in sorted(added_keys, key=lambda k: (k[0], k[1] or 0, k[2]))]
-        removed = [old_map[k] for k in sorted(removed_keys, key=lambda k: (k[0], k[1] or 0, k[2]))]
-
+        added = []
+        removed = []
         changed = []
-        for k in sorted(common_keys, key=lambda k: (k[0], k[1] or 0, k[2])):
-            old_f = old_map[k]
-            new_f = new_map[k]
-            field_changes = {}
-            for attr in ("field_name", "data_type", "description", "field_index", "field_group"):
-                ov = old_f.get(attr)
-                nv = new_f.get(attr)
-                if ov != nv:
-                    field_changes[attr] = {"old": ov, "new": nv}
-            if field_changes:
-                changed.append({
-                    "key": {"field_group": k[0], "field_index": k[1], "field_name": k[2]},
-                    "changes": field_changes,
-                })
+
+        id_sort = lambda k: (k[0], k[1])
+
+        for id_key in sorted(new_ids - old_ids, key=id_sort):
+            for f in new_by_id[id_key]:
+                added.append(f)
+
+        for id_key in sorted(old_ids - new_ids, key=id_sort):
+            for f in old_by_id[id_key]:
+                removed.append(f)
+
+        for id_key in sorted(old_ids & new_ids, key=id_sort):
+            old_list = old_by_id[id_key]
+            new_list = new_by_id[id_key]
+
+            for i in range(max(len(old_list), len(new_list))):
+                old_f = old_list[i] if i < len(old_list) else None
+                new_f = new_list[i] if i < len(new_list) else None
+
+                if old_f is None:
+                    added.append(new_f)
+                elif new_f is None:
+                    removed.append(old_f)
+                else:
+                    field_changes = {}
+                    for attr in ("field_name", "data_type", "description", "field_index", "field_group"):
+                        ov = old_f.get(attr)
+                        nv = new_f.get(attr)
+                        if ov != nv:
+                            field_changes[attr] = {"old": ov, "new": nv}
+                    if field_changes:
+                        changed.append({
+                            "key": {
+                                "field_group": old_f.get("field_group", ""),
+                                "field_index": old_f.get("field_index"),
+                                "field_name": old_f.get("field_name", ""),
+                            },
+                            "new_key": {
+                                "field_group": new_f.get("field_group", ""),
+                                "field_index": new_f.get("field_index"),
+                                "field_name": new_f.get("field_name", ""),
+                            },
+                            "changes": field_changes,
+                        })
 
         return {"added": added, "removed": removed, "changed": changed}
 
